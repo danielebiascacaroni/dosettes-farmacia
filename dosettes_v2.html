@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dosettes – Farmacia Ascona</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F4F2EE;
+  --surface: #FFFFFF;
+  --surface2: #EDEAE4;
+  --border: #D8D4CC;
+  --text: #1A1916;
+  --text2: #6B6760;
+  --text3: #9E9A94;
+  --accent: #2D6A4F;
+  --accent-light: #D8EDDF;
+  --accent-dark: #1B4332;
+  --danger: #C0392B;
+  --danger-light: #FDECEA;
+  --warning: #E67E22;
+  --warning-light: #FEF3E2;
+  --info: #2980B9;
+  --info-light: #EBF5FB;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --purple: #7B2D8B;
+  --purple-light: #F3E5F5;
+  --canceled: #95A5A6;
+  --canceled-light: #F2F3F4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ── LAYOUT ── */
+#app { display: flex; flex-direction: column; min-height: 100vh; }
+
+.screen { display: none; flex-direction: column; flex: 1; }
+.screen.active { display: flex; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--accent-dark);
+  color: white;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.header-back {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.header-back:active { background: rgba(255,255,255,0.25); }
+.header-title { font-size: 18px; font-weight: 600; flex: 1; }
+.header-subtitle { font-size: 12px; opacity: 0.75; }
+.header-action {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.2s;
+}
+.header-action:active { background: rgba(255,255,255,0.25); }
+
+/* ── CONTENT ── */
+.content { padding: 20px; flex: 1; overflow-y: auto; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.card-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  margin-bottom: 12px;
+}
+
+/* ── ALERT ALLERGIE ── */
+.allergie-banner {
+  background: var(--danger);
+  color: white;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 15px;
+}
+.allergie-banner .icon { font-size: 20px; }
+.no-allergie-banner {
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ── SEARCH ── */
+.search-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+.search-wrap input {
+  width: 100%;
+  padding: 14px 18px 14px 46px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-family: var(--font);
+  background: var(--surface);
+  transition: border-color 0.2s;
+  outline: none;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-icon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--text3);
+}
+
+/* ── PATIENT LIST ── */
+.patient-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.15s;
+  box-shadow: var(--shadow);
+}
+.patient-item:active { transform: scale(0.98); background: var(--surface2); }
+.patient-avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.patient-avatar.has-allergy { background: var(--danger); }
+.patient-info { flex: 1; }
+.patient-name { font-size: 17px; font-weight: 600; }
+.patient-meta { font-size: 13px; color: var(--text2); margin-top: 2px; }
+.patient-badges { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-family: var(--mono);
+}
+.badge-danger { background: var(--danger-light); color: var(--danger); }
+.badge-warning { background: var(--warning-light); color: var(--warning); }
+.badge-success { background: var(--accent-light); color: var(--accent-dark); }
+.badge-info { background: var(--info-light); color: var(--info); }
+.badge-gray { background: var(--surface2); color: var(--text2); }
+.chevron { color: var(--text3); font-size: 20px; }
+
+/* ── TABS ── */
+.tabs {
+  display: flex;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 18px;
+  gap: 2px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--accent-dark);
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+
+/* ── FARMACI TABLE ── */
+.farmaci-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.farmaci-table th {
+  background: var(--surface2);
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text2);
+  border-bottom: 2px solid var(--border);
+}
+.farmaci-table th:first-child { text-align: left; padding-left: 12px; }
+.farmaci-table td {
+  padding: 11px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.farmaci-table td:first-child { text-align: left; padding-left: 12px; font-weight: 500; }
+.farmaci-table tr:last-child td { border-bottom: none; }
+.farmaci-table tr:nth-child(even) { background: rgba(0,0,0,0.015); }
+.dose-val {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent-dark);
+}
+.dose-empty { color: var(--text3); font-size: 13px; }
+.farmaco-note { font-size: 11px; color: var(--text2); margin-top: 2px; font-style: italic; }
+.categoria-header {
+  background: var(--surface2) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3) !important;
+  padding: 8px 12px !important;
+  text-align: left !important;
+}
+
+/* ── SEZIONE CATEGORIA ── */
+.categoria-section { margin-bottom: 20px; }
+.categoria-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  padding: 8px 0 6px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 0;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:active { background: var(--accent-dark); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-outline {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+.btn-ghost {
+  background: var(--surface2);
+  color: var(--text);
+}
+.btn-full { width: 100%; }
+.btn-sm { padding: 8px 14px; font-size: 14px; border-radius: var(--radius-sm); }
+.btn-icon { padding: 10px; border-radius: 50%; }
+
+/* ── FORM ── */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 13px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-family: var(--font);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.2s;
+  outline: none;
+  -webkit-appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent);
+}
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+/* ── DOSE INPUT GRID ── */
+.dose-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+}
+.dose-cell { text-align: center; }
+.dose-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text3);
+  margin-bottom: 4px;
+}
+.dose-input {
+  width: 100%;
+  padding: 10px 6px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: center;
+  background: var(--surface);
+  color: var(--accent-dark);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.dose-input:focus { border-color: var(--accent); }
+
+/* ── FARMACO EDIT ROW ── */
+.farmaco-edit-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.farmaco-edit-card.nuovo { border-color: var(--accent); background: var(--accent-light); }
+.farmaco-delete-btn {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: var(--danger-light);
+  border: none;
+  color: var(--danger);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── CHECKLIST ── */
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.checklist-item.checked {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+.checklist-checkbox {
+  width: 28px; height: 28px;
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.checklist-item.checked .checklist-checkbox {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-size: 16px;
+}
+.checklist-text { flex: 1; }
+.checklist-farmaco { font-weight: 600; font-size: 15px; }
+.checklist-dose { font-size: 13px; color: var(--text2); font-family: var(--mono); margin-top: 2px; }
+
+/* ── PIN PAD ── */
+.pin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+.pin-sheet {
+  background: var(--surface);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 28px 24px 40px;
+  width: 100%;
+  max-width: 420px;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.pin-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+.pin-subtitle { font-size: 14px; color: var(--text2); text-align: center; margin-bottom: 24px; }
+.pin-select {
+  margin-bottom: 18px;
+}
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.pin-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  transition: all 0.2s;
+}
+.pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+.pin-dot.error { background: var(--danger); border-color: var(--danger); }
+.pin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.pin-key {
+  padding: 18px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 24px;
+  font-weight: 600;
+  font-family: var(--mono);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.1s;
+  text-align: center;
+}
+.pin-key:active { background: var(--surface2); transform: scale(0.95); }
+.pin-key.delete { font-size: 18px; color: var(--danger); border-color: var(--danger-light); }
+.pin-key.confirm { background: var(--accent); color: white; border-color: var(--accent); font-size: 16px; }
+.pin-error { color: var(--danger); text-align: center; font-size: 14px; font-weight: 500; margin-top: 8px; }
+
+/* ── FIRMA CONFIRMED ── */
+.firma-confirmed {
+  background: var(--accent-light);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.firma-icon { font-size: 24px; }
+.firma-info .firma-nome { font-weight: 700; font-size: 16px; color: var(--accent-dark); }
+.firma-info .firma-ts { font-size: 12px; color: var(--text2); font-family: var(--mono); margin-top: 2px; }
+
+/* ── STORICO ── */
+.storico-item {
+  border-left: 3px solid var(--accent);
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.storico-date { font-size: 12px; font-family: var(--mono); color: var(--text3); }
+.storico-action { font-size: 14px; font-weight: 600; margin: 2px 0; }
+.storico-detail { font-size: 13px; color: var(--text2); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+  backdrop-filter: blur(3px);
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: fadeScale 0.2s ease;
+}
+@keyframes fadeScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal-title { font-size: 20px; font-weight: 700; margin-bottom: 18px; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--text);
+  color: white;
+  padding: 12px 22px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 2000;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--accent); }
+.toast.error { background: var(--danger); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text3);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 16px; }
+
+/* ── FAB ── */
+.fab {
+  position: fixed;
+  bottom: 28px; right: 24px;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(45,106,79,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50;
+  transition: all 0.2s;
+}
+.fab:active { transform: scale(0.93); background: var(--accent-dark); }
+
+/* ── DIVIDER ── */
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* ── INFO ROW ── */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-key { color: var(--text2); font-size: 13px; }
+.info-val { font-weight: 500; text-align: right; }
+
+/* ── VERSIONE BADGE ── */
+.versione-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--info-light);
+  color: var(--info);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+/* ── PROGRESS ── */
+.progress-bar {
+  height: 8px;
+  background: var(--surface2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* ── SECTION HEADER ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-title { font-size: 18px; font-weight: 700; }
+
+/* ── LOGO HEADER ── */
+.logo-header {
+  background: var(--accent-dark);
+  padding: 28px 24px 20px;
+  color: white;
+}
+.logo-name { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+.logo-sub { font-size: 13px; opacity: 0.7; margin-top: 2px; }
+.logo-date { font-size: 12px; opacity: 0.6; margin-top: 8px; font-family: var(--mono); }
+
+/* ── RESPONSIVE ── */
+@media (min-width: 640px) {
+  .content { max-width: 640px; margin: 0 auto; }
+}
+
+/* PREP CARD */
+.prep-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.prep-card.canceled { background: var(--canceled-light); border-color: var(--canceled); opacity: 0.75; }
+.prep-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.prep-periodo { font-weight: 700; font-size: 16px; }
+.prep-data { font-size: 12px; color: var(--text2); margin-top: 2px; font-family: var(--mono); }
+.prep-firme { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+.prep-consegna { background: var(--purple-light); border: 1px solid var(--purple); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 13px; }
+.prep-consegna-label { font-weight: 700; color: var(--purple); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.prep-actions { display: flex; gap: 8px; margin-top: 10px; }
+.storico-item.canceled { border-left-color: var(--canceled); background: var(--canceled-light); opacity:0.8; }
+.storico-item.prep-entry { border-left-color: var(--info); }
+.storico-item.consegna-entry { border-left-color: var(--purple); }
+.storico-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.badge-canceled { background: var(--canceled-light); color: var(--canceled); text-decoration: line-through; }
+.badge-purple { background: var(--purple-light); color: var(--purple); }
+.operatore-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; }
+.op-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.op-info { flex: 1; }
+.op-nome { font-weight: 600; }
+.op-ruolo { font-size: 12px; color: var(--text2); }
+.op-delete { background: var(--danger-light); border: none; color: var(--danger); width: 34px; height: 34px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 20px; backdrop-filter: blur(3px); }
+.modal { background: var(--surface); border-radius: var(--radius); padding: 24px; width: 100%; max-width: 500px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: fadeScale 0.2s ease; }
+.modal-title { font-size: 20px; font-weight: 700; margin-bottom: 18px; }
+.modal-close { float: right; background: var(--surface2); border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ════════════════════════════════════════════
+     SCREEN 1: HOME / LISTA PAZIENTI
+════════════════════════════════════════════ -->
+<div id="screen-home" class="screen active">
+  <div class="logo-header">
+    <div class="logo-name">💊 Dosettes</div>
+    <div class="logo-sub">Farmacia Ascona · Monte Verità</div>
+    <div class="logo-date" id="header-date"></div>
+  </div>
+  <div class="content">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" id="search-input" placeholder="Cerca paziente..." autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="section-header">
+      <span class="section-title">Pazienti</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="count-badge" class="badge badge-gray">0</span>
+        <button class="btn btn-sm btn-ghost" onclick="showScreen('screen-operatori')" style="font-size:13px">⚙️ Operatori</button>
+      </div>
+    </div>
+    <div id="patient-list"></div>
+  </div>
+  <button class="fab" onclick="showScreen('screen-nuovo-paziente')">+</button>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 2: SCHEDA PAZIENTE
+════════════════════════════════════════════ -->
+<div id="screen-paziente" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <div style="flex:1">
+      <div class="header-title" id="pz-header-nome"></div>
+      <div class="header-subtitle" id="pz-header-meta"></div>
+    </div>
+    <button class="header-action" onclick="stampaTerapia()">🖨 Stampa</button>
+  </div>
+  <div id="allergie-bar"></div>
+  <div class="content">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('terapia', this)">Terapia</button>
+      <button class="tab-btn" onclick="switchTab('preparazione', this)">Prep.</button>
+      <button class="tab-btn" onclick="switchTab('anagrafica', this)">Info</button>
+      <button class="tab-btn" onclick="switchTab('storico', this)">Storico</button>
+    </div>
+
+    <!-- TAB: TERAPIA -->
+    <div id="tab-terapia">
+      <div class="section-header">
+        <div>
+          <span class="section-title">Terapia attiva</span>
+          <span id="versione-label" class="versione-badge" style="margin-left:8px">v1</span>
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="showModificaTerapia()">✏️ Modifica</button>
+      </div>
+      <div class="card" style="padding:0; overflow:hidden;">
+        <table class="farmaci-table" id="terapia-table"></table>
+      </div>
+    </div>
+
+    <!-- TAB: PREPARAZIONE -->
+    <div id="tab-preparazione" style="display:none">
+      <div class="section-header">
+        <span class="section-title">Nuova preparazione</span>
+      </div>
+      <div class="card">
+        <div class="form-group">
+          <label class="form-label">Periodo coperto</label>
+          <div class="form-row">
+            <input type="date" class="form-input" id="prep-dal">
+            <input type="date" class="form-input" id="prep-al">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="avviaChecklist()">▶ Avvia Checklist</button>
+      </div>
+
+      <div class="section-header" style="margin-top:8px">
+        <span class="section-title">Preparazioni recenti</span>
+      </div>
+      <div id="prep-list"></div>
+    </div>
+
+    <!-- TAB: ANAGRAFICA -->
+    <div id="tab-anagrafica" style="display:none">
+      <div class="card" id="anagrafica-content"></div>
+    </div>
+
+    <!-- TAB: STORICO -->
+    <div id="tab-storico" style="display:none">
+      <div id="storico-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 3: CHECKLIST PREPARAZIONE
+════════════════════════════════════════════ -->
+<div id="screen-checklist" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-paziente')">←</button>
+    <div style="flex:1">
+      <div class="header-title">Checklist preparazione</div>
+      <div class="header-subtitle" id="checklist-subtitle"></div>
+    </div>
+  </div>
+  <div id="allergie-bar-prep"></div>
+  <div class="content">
+    <div class="card" style="background:var(--info-light); border-color:var(--info)">
+      <div style="font-size:13px; color:var(--info); font-weight:600">
+        ✅ Spunta ogni farmaco man mano che riempi la dosette
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title">Farmaci fissi</span>
+      <span id="check-progress" class="badge badge-info">0/0</span>
+    </div>
+    <div id="checklist-fissi"></div>
+
+    <div id="checklist-autogestiti-section" style="display:none">
+      <div class="section-header" style="margin-top:16px">
+        <span class="section-title">Autogestiti</span>
+      </div>
+      <div id="checklist-autogestiti"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div style="text-align:center; font-size:13px; color:var(--text2); margin-top:6px" id="progress-label">0 di 0 completati</div>
+
+    <div style="margin-top:24px">
+      <div class="card-title">FIRMA RIEMPIMENTO</div>
+      <div id="firma-riempimento-wrap">
+        <button class="btn btn-primary btn-full" onclick="richiediFirma('riempimento')">✍️ Firma come Riempitore</button>
+      </div>
+
+      <div class="card-title" style="margin-top:18px">FIRMA CONTROLLO</div>
+      <div id="firma-controllo-wrap">
+        <div style="color:var(--text3); font-size:14px; text-align:center; padding:12px">
+          ⏳ In attesa della firma di riempimento
+        </div>
+      </div>
+    </div>
+
+    <div id="btn-completa-prep" style="display:none; margin-top:20px">
+      <button class="btn btn-primary btn-full" style="font-size:18px; padding:18px" onclick="completaPreparazione()">
+        ✅ Salva Preparazione Completata
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 4: MODIFICA TERAPIA
+════════════════════════════════════════════ -->
+<div id="screen-modifica-terapia" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-paziente')">←</button>
+    <div class="header-title">Modifica terapia</div>
+  </div>
+  <div class="content">
+    <div class="card" style="background:var(--warning-light); border-color:var(--warning)">
+      <div style="font-size:13px; color:var(--warning); font-weight:600">
+        ⚠️ Ogni salvataggio crea una nuova versione con traccia completa
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Motivo modifica *</label>
+      <input type="text" class="form-input" id="motivo-modifica" placeholder="es. Riduzione Furosemide per miglioramento edemi">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Medico</label>
+        <input type="text" class="form-input" id="edit-medico" placeholder="es. Varini">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Documento</label>
+        <select class="form-select" id="edit-documento">
+          <option>Ricetta</option>
+          <option>Telefono + ricetta</option>
+          <option>Telefono</option>
+          <option>Lettera medica</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-header">
+      <span class="section-title">Farmaci fissi</span>
+      <button class="btn btn-sm btn-outline" onclick="aggiungiFarmaco('fisso')">+ Aggiungi</button>
+    </div>
+    <div id="edit-fissi"></div>
+
+    <div class="section-header" style="margin-top:8px">
+      <span class="section-title">Autogestiti</span>
+      <button class="btn btn-sm btn-outline" onclick="aggiungiFarmaco('autogestito')">+ Aggiungi</button>
+    </div>
+    <div id="edit-autogestiti"></div>
+
+    <div class="section-header" style="margin-top:8px">
+      <span class="section-title">Riserva</span>
+      <button class="btn btn-sm btn-outline" onclick="aggiungiFarmaco('riserva')">+ Aggiungi</button>
+    </div>
+    <div id="edit-riserva"></div>
+
+    <div style="margin-top:24px; padding-bottom:40px">
+      <button class="btn btn-primary btn-full" style="font-size:17px; padding:16px" onclick="salvaNuovaVersione()">
+        💾 Salva nuova versione terapia
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 5: NUOVO PAZIENTE
+════════════════════════════════════════════ -->
+<div id="screen-nuovo-paziente" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <div class="header-title">Nuovo paziente</div>
+  </div>
+  <div class="content">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Cognome *</label>
+        <input type="text" class="form-input" id="new-cognome" autocapitalize="words">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome *</label>
+        <input type="text" class="form-input" id="new-nome" autocapitalize="words">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data di nascita *</label>
+      <input type="date" class="form-input" id="new-ddn">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Medico curante</label>
+      <input type="text" class="form-input" id="new-medico">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Giorno ritiro</label>
+        <select class="form-select" id="new-giorno">
+          <option>Lunedì</option><option>Martedì</option><option>Mercoledì</option>
+          <option>Giovedì</option><option>Venerdì</option><option>Sabato</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Consegna</label>
+        <select class="form-select" id="new-consegna">
+          <option>Ritiro in farmacia</option>
+          <option>Consegna EOC</option>
+          <option>Consegna a domicilio</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">⚠️ Allergie / Avvisi</label>
+      <input type="text" class="form-input" id="new-allergie" placeholder="es. Propofol, Penicillina...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Note cliniche</label>
+      <textarea class="form-textarea" id="new-note" placeholder="es. Diabetico, Dialisi, insufficienza renale..."></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" style="margin-top:8px; padding:16px; font-size:17px" onclick="salvaNuovoPaziente()">
+      ✅ Crea paziente
+    </button>
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 6: STAMPA / PDF PREVIEW
+════════════════════════════════════════════ -->
+<div id="screen-stampa" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-paziente')">←</button>
+    <div class="header-title">Anteprima stampa</div>
+    <button class="header-action" onclick="window.print()">🖨 Stampa</button>
+  </div>
+  <div class="content" id="stampa-content"></div>
+</div>
+
+
+<!-- ══ SCREEN 7: GESTIONE OPERATORI ══ -->
+<div id="screen-operatori" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <div class="header-title">Gestione Operatori</div>
+  </div>
+  <div class="content">
+    <div class="card" style="background:var(--warning-light);border-color:var(--warning);padding:12px 16px;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--warning);font-weight:600">🔐 Aggiungere o rimuovere operatori richiede il PIN del titolare</div>
+    </div>
+    <div class="section-header">
+      <span class="section-title">Operatori attivi</span>
+      <button class="btn btn-sm btn-primary" onclick="showModalNuovoOperatore()">+ Aggiungi</button>
+    </div>
+    <div id="operatori-list"></div>
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL OVERLAY ══ -->
+<div id="modal-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)chiudiModal()">
+  <div id="modal-content" class="modal"></div>
+</div>
+
+</div><!-- /#app -->
+
+<!-- ════════════════════════════════════════════
+     PIN OVERLAY
+════════════════════════════════════════════ -->
+<div id="pin-overlay" class="pin-overlay" style="display:none">
+  <div class="pin-sheet">
+    <div class="pin-title">🔐 Firma</div>
+    <div class="pin-subtitle" id="pin-subtitle">Seleziona il tuo nome e inserisci il PIN</div>
+    <div class="pin-select">
+      <select class="form-select" id="pin-operatore">
+        <option value="">— Seleziona operatore —</option>
+      </select>
+    </div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key delete" onclick="pinKey('del')">⌫</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key confirm" onclick="pinKey('ok')">OK</button>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+    <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="chiudiPin()">Annulla</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+// ════════════════════════════════════════════
+// DATI OPERATORI
+// ════════════════════════════════════════════
+let OPERATORI = [
+  { sigla:'VA', nome:'Valentina',   ruolo:'Farmacista', pin:'1111' },
+  { sigla:'GL', nome:'Giulia Luna', ruolo:'Farmacista', pin:'2222' },
+  { sigla:'MA', nome:'Martina',     ruolo:'Assistente', pin:'3333' },
+  { sigla:'VE', nome:'Veronica',    ruolo:'Assistente', pin:'4444' },
+  { sigla:'FR', nome:'Francesca',   ruolo:'Assistente', pin:'5555' },
+];
+
+// Snapshot terapie storiche (chiave: pazienteId-vN)
+let TERAPIE_STORICHE = {};
+
+// Firma temporanee per flussi modali
+let consegnaFirma = null;
+let annulloFirma  = null;
+let prepCorrente  = null;
+
+// ════════════════════════════════════════════
+// DATABASE DEMO
+// ════════════════════════════════════════════
+let DB = {
+  pazienti: [
+    {
+      id:'P001', cognome:'Fenner', nome:'Walter', ddn:'1946-05-27',
+      medico:'Santa Croce', giorno:'Martedi', consegna:'Ritiro in farmacia',
+      allergie:'', note:'Diabetico. In dialisi.', versione:3,
+      terapia:{
+        dataSchema:'2026-02-17', dataSchemaPrecedente:'2026-01-27',
+        fissi:[
+          {nome:'AspirinCardio 100 mg',  mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Clopidogrel 75 mg',     mat:1,mez:0,ser:0,not:0,note:'fino al 27.05.26'},
+          {nome:'Nebilet 5 mg',          mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Torasemid 200',         mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Metolazon 5 mg',        mat:2,mez:0,ser:0,not:0,note:''},
+          {nome:'Esomeprazol 20 mg',     mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Lacdigest',             mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Zenon 20mg/10mg',       mat:0,mez:0,ser:1,not:0,note:''},
+          {nome:'Pregabalin Mepha 50 mg',mat:1,mez:0,ser:1,not:0,note:''},
+          {nome:'Alfuzosin retard 10',   mat:0,mez:0,ser:1,not:0,note:''},
+          {nome:'Renacet cpr 950 mg',    mat:1,mez:0,ser:1,not:0,note:''},
+        ],
+        autogestiti:[
+          {nome:'Ozempic Fix dose',      istruzioni:'1 mg settimanale - somministra Dialisi'},
+          {nome:'Anafranil 25 mg',       istruzioni:'1 alla sera'},
+          {nome:'Toujeo 300 UI/solostar',istruzioni:'13 U.I. alla sera dal 23.01.2026'},
+          {nome:'Laxoberon 7.5 mg/ml',   istruzioni:'20 gocce alla sera'},
+          {nome:'Seresta 15 mg',         istruzioni:'1 prima di coricarsi'},
+          {nome:'Riopan 800 gel',        istruzioni:'1 BST max 3 volte al giorno'},
+          {nome:'Renvela polv 2.4g',     istruzioni:'1 bustina a pranzo e 1 a cena'},
+        ],
+        riserva:[
+          {nome:'Novalgine 500 mg',istruzioni:'max 2 cpr ogni 8 ore'},
+          {nome:'Xyzal 5 mg',      istruzioni:'1 cpr se prurito'},
+          {nome:'Redormin 500 mg', istruzioni:'1 cpr se insonnia'},
+        ]
+      },
+      storico:[
+        {tipo:'terapia',data:'2026-02-06',medico:'Santa Croce',azione:'Riduzione Gabapentin, Quetiapi fissa',doc:'ricetta',op:'VZ',visto:'MQ',versione:1},
+        {tipo:'terapia',data:'2026-02-23',medico:'Santa Croce',azione:'Inizio terapia in dosette',doc:'ricetta',op:'VZ',visto:'MQ',versione:2},
+        {tipo:'terapia',data:'2026-02-26',medico:'Santa Croce',azione:'Aumento Gabapentin inizio Quetiapin',doc:'tel + ricetta',op:'VZ',visto:'fn',versione:3},
+      ],
+      preparazioni:[]
+    },
+    {
+      id:'P002', cognome:'Calabro', nome:'Francesca', ddn:'1938-07-17',
+      medico:'Varini', giorno:'Mercoledi', consegna:'Consegna EOC',
+      allergie:'Propofol (09.07.2024)', note:'Paziente Diabetica. Insulina schema variabile.',
+      versione:2,
+      terapia:{
+        dataSchema:'2026-03-11', dataSchemaPrecedente:'2025-07-17',
+        fissi:[
+          {nome:'Aspirin Cardio 100 mg',mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Pantoprazol 40 mg',    mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Forxiga 10 mg',        mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Ac. Folico',           mat:1,mez:0,ser:0,not:0,note:'vene'},
+          {nome:'Amlodipina 5 mg',      mat:0,mez:0,ser:1,not:0,note:''},
+        ],
+        autogestiti:[
+          {nome:'Vi-de 3 gtt',       istruzioni:'20 gocce al mattino'},
+          {nome:'Novorapid Flex Pen', istruzioni:'secondo schema'},
+          {nome:'Ryzodeg',           istruzioni:'16 UI mattino, 10 UI pranzo'},
+          {nome:'Paragol',           istruzioni:'20 ml mattino e pranzo'},
+          {nome:'Toujeo',            istruzioni:'secondo schema'},
+        ],
+        riserva:[
+          {nome:'Quetiapin 25',   istruzioni:'1 x2/die se agitazione'},
+          {nome:'Dafalgan 500 mg',istruzioni:'1 cpr 3 volte al di'},
+          {nome:'Trittico 50',    istruzioni:'1/2 cpr 2x/die'},
+          {nome:'Gyno-canesten',  istruzioni:'2 volte al giorno'},
+          {nome:'Domperidon oro', istruzioni:'1 cpr 3 volte al di'},
+          {nome:'Movicol bst',    istruzioni:'1 bst max 2x/die'},
+        ]
+      },
+      storico:[
+        {tipo:'terapia',data:'2026-02-06',medico:'Varini',azione:'Introd. Renacet, stop Calcium carbonat',doc:'ricetta',op:'MQ',visto:'VF',versione:1},
+        {tipo:'terapia',data:'2026-03-11',medico:'Varini',azione:'Nuovo schema completo',doc:'ricetta',op:'VZ',visto:'VF',versione:2},
+      ],
+      preparazioni:[]
+    }
+  ]
+};
+
+// Snapshot demo per Calabro v1
+TERAPIE_STORICHE['P002-v1'] = {
+  dataSchema:'2025-07-17',
+  fissi:[
+    {nome:'Aspirin Cardio 100 mg',mat:1,mez:0,ser:0,not:0,note:''},
+    {nome:'Pantoprazol 40 mg',    mat:1,mez:0,ser:0,not:0,note:''},
+    {nome:'Forxiga 10 mg',        mat:1,mez:0,ser:0,not:0,note:''},
+  ],
+  autogestiti:[],
+  riserva:[]
+};
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let currentPazienteId = null;
+let pinCallback       = null;
+let pinBuffer         = '';
+let firmaRiempimento  = null;
+let firmaControllo    = null;
+let editFissi         = [];
+let editAutogestiti   = [];
+let editRiserva       = [];
+let _checkedFissi     = new Set();
+let _checkedAuto      = new Set();
+
+// ════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════
+function getPaziente(id) { return DB.pazienti.find(function(p){ return p.id === id; }); }
+function getCP() { return getPaziente(currentPazienteId); }
+function todayISO() { return new Date().toISOString().split('T')[0]; }
+function now() {
+  return new Date().toLocaleString('it-CH', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function formatDate(s) {
+  if (!s) return '-';
+  var d = new Date(s);
+  return d.toLocaleDateString('it-CH', {day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function formatAge(s) {
+  return Math.floor((Date.now() - new Date(s)) / 31557600000) + ' anni';
+}
+function dose(v) {
+  if (!v || +v === 0) return '<span class="dose-empty">·</span>';
+  return '<span class="dose-val">' + v + '</span>';
+}
+function showToast(msg, type) {
+  type = type || '';
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(function(){ t.className = 'toast ' + type; }, 2500);
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  if (id === 'screen-operatori') renderOperatori();
+}
+function chiudiModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+function mostraModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+// ════════════════════════════════════════════
+// HOME
+// ════════════════════════════════════════════
+function renderHome() {
+  var q = (document.getElementById('search-input').value || '').toLowerCase().trim();
+  var list  = document.getElementById('patient-list');
+  var badge = document.getElementById('count-badge');
+  var fil = DB.pazienti.filter(function(p){
+    return (p.cognome + ' ' + p.nome + ' ' + p.ddn).toLowerCase().indexOf(q) !== -1;
+  });
+  badge.textContent = fil.length;
+  if (!fil.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>Nessun paziente trovato</p></div>';
+    return;
+  }
+  list.innerHTML = fil.map(function(p){
+    var ha  = p.allergie && p.allergie.trim();
+    var ini = p.cognome[0] + (p.nome[0] || '');
+    var badges = '';
+    if (ha)  badges += '<span class="badge badge-danger">⚠️ ' + p.allergie + '</span>';
+    badges += '<span class="badge badge-gray">' + p.giorno + '</span>';
+    badges += '<span class="badge badge-info">v' + p.versione + '</span>';
+    if (p.note && p.note.toLowerCase().indexOf('diabetico') !== -1)
+      badges += '<span class="badge badge-warning">Diabetico</span>';
+    if (p.note && p.note.toLowerCase().indexOf('dialisi') !== -1)
+      badges += '<span class="badge badge-info">Dialisi</span>';
+    return '<div class="patient-item" onclick="openPaziente(\'' + p.id + '\')">'
+      + '<div class="patient-avatar' + (ha ? ' has-allergy' : '') + '">' + ini + '</div>'
+      + '<div class="patient-info">'
+      + '<div class="patient-name">' + p.cognome + ' ' + p.nome + '</div>'
+      + '<div class="patient-meta">' + formatDate(p.ddn) + ' · ' + formatAge(p.ddn) + ' · ' + p.medico + '</div>'
+      + '<div class="patient-badges">' + badges + '</div>'
+      + '</div><span class="chevron">›</span></div>';
+  }).join('');
+}
+document.getElementById('search-input').addEventListener('input', renderHome);
+
+// ════════════════════════════════════════════
+// PAZIENTE
+// ════════════════════════════════════════════
+function openPaziente(id) {
+  currentPazienteId = id;
+  var p = getCP();
+  document.getElementById('pz-header-nome').textContent = p.cognome + ' ' + p.nome;
+  document.getElementById('pz-header-meta').textContent = formatDate(p.ddn) + ' · ' + formatAge(p.ddn);
+  renderAllergieBar('allergie-bar', p);
+  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 0); });
+  switchTab('terapia', null);
+  showScreen('screen-paziente');
+}
+
+function renderAllergieBar(elId, p) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  if (p.allergie && p.allergie.trim()) {
+    el.innerHTML = '<div class="allergie-banner"><span style="font-size:20px">⚠️</span>ALLERGIE: ' + p.allergie + '</div>';
+  } else {
+    el.innerHTML = '<div class="no-allergie-banner">✅ Nessuna allergia documentata</div>';
+  }
+}
+
+function switchTab(tab, btn) {
+  ['terapia','preparazione','anagrafica','storico'].forEach(function(t){
+    document.getElementById('tab-' + t).style.display = (t === tab) ? '' : 'none';
+  });
+  if (btn) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+  var p = getCP();
+  if (tab === 'terapia')      renderTerapia(p);
+  if (tab === 'preparazione') renderPreparazione(p);
+  if (tab === 'anagrafica')   renderAnagrafica(p);
+  if (tab === 'storico')      renderStorico(p);
+}
+
+// ════════════════════════════════════════════
+// TERAPIA VIEW
+// ════════════════════════════════════════════
+function renderTerapia(p) {
+  document.getElementById('versione-label').textContent = 'v' + p.versione + ' · ' + formatDate(p.terapia.dataSchema);
+  document.getElementById('terapia-table').innerHTML = buildTerapiaTable(p.terapia);
+}
+
+function buildTerapiaTable(t) {
+  var h = '<tr><th style="text-align:left;padding-left:12px;min-width:150px">Farmaco</th>'
+    + '<th>Mat</th><th>Mez</th><th>Ser</th><th>Not</th>'
+    + '<th style="text-align:left">Note</th></tr>';
+  h += '<tr><td colspan="6" class="categoria-header">▸ FISSI</td></tr>';
+  (t.fissi || []).forEach(function(f){
+    h += '<tr><td>' + f.nome + '</td>'
+      + '<td>' + dose(f.mat) + '</td><td>' + dose(f.mez) + '</td>'
+      + '<td>' + dose(f.ser) + '</td><td>' + dose(f.not) + '</td>'
+      + '<td style="font-size:12px;color:var(--text2)">' + (f.note || '') + '</td></tr>';
+  });
+  if ((t.autogestiti || []).length) {
+    h += '<tr><td colspan="6" class="categoria-header">▸ AUTOGESTITI</td></tr>';
+    t.autogestiti.forEach(function(f){
+      h += '<tr><td>' + f.nome + '</td>'
+        + '<td colspan="4" style="text-align:left;font-size:13px;color:var(--text2)">' + f.istruzioni + '</td>'
+        + '<td></td></tr>';
+    });
+  }
+  if ((t.riserva || []).length) {
+    h += '<tr><td colspan="6" class="categoria-header">▸ RISERVA</td></tr>';
+    t.riserva.forEach(function(f){
+      h += '<tr><td>' + f.nome + '</td>'
+        + '<td colspan="4" style="text-align:left;font-size:13px;color:var(--text2)">' + f.istruzioni + '</td>'
+        + '<td></td></tr>';
+    });
+  }
+  return h;
+}
+
+// ════════════════════════════════════════════
+// PREPARAZIONE VIEW
+// ════════════════════════════════════════════
+function renderPreparazione(p) {
+  var list = document.getElementById('prep-list');
+  if (!p.preparazioni || !p.preparazioni.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="icon">📋</div><p>Nessuna preparazione</p></div>';
+    return;
+  }
+  list.innerHTML = p.preparazioni.slice().reverse().map(function(pr){
+    var canceled = pr.annullata;
+    var statoClass = canceled ? 'badge-canceled' : (pr.esito === 'OK' ? 'badge-success' : 'badge-danger');
+    var statoLabel = canceled ? 'ANNULLATA' : pr.esito;
+    var periodoHtml = canceled
+      ? '<span style="text-decoration:line-through">' + pr.periodo + '</span>'
+      : pr.periodo;
+
+    var consegnaHtml = '';
+    if (pr.consegna) {
+      consegnaHtml = '<div class="prep-consegna">'
+        + '<div class="prep-consegna-label">📦 Consegnata</div>'
+        + '<div style="font-size:13px"><b>' + pr.consegna.destinatario + '</b> · ' + pr.consegna.data + '</div>'
+        + '<div style="font-size:12px;color:var(--text2)">Da: ' + pr.consegna.operatore
+        + (pr.consegna.modalita ? ' · ' + pr.consegna.modalita : '')
+        + (pr.consegna.note ? ' · ' + pr.consegna.note : '') + '</div>'
+        + '</div>';
+    }
+
+    var actionsHtml = '';
+    if (canceled) {
+      actionsHtml = '<div style="font-size:12px;color:var(--canceled);margin-top:6px;font-style:italic">'
+        + 'Annullata da: ' + (pr.annullataDA || '-') + ' il ' + (pr.annullataIL || '-')
+        + (pr.motivoAnnullo ? ' · Motivo: ' + pr.motivoAnnullo : '') + '</div>';
+    } else {
+      var btns = '';
+      if (!pr.consegna) {
+        btns += '<button class="btn btn-sm btn-outline" style="flex:1" onclick="showConsegnaModal(\''
+          + pr.id + '\')">📦 Registra consegna</button>';
+      }
+      btns += '<button class="btn btn-sm btn-ghost" style="flex:1;color:var(--danger)" onclick="mostraAnnullaModal(\''
+        + pr.id + '\')">🗑 Annulla</button>';
+      actionsHtml = '<div class="prep-actions">' + btns + '</div>';
+    }
+
+    return '<div class="prep-card' + (canceled ? ' canceled' : '') + '">'
+      + '<div class="prep-header">'
+      + '<div><div class="prep-periodo">' + periodoHtml + '</div>'
+      + '<div class="prep-data">' + pr.data + ' · v' + (pr.versione || '') + '</div></div>'
+      + '<span class="badge ' + statoClass + '">' + statoLabel + '</span>'
+      + '</div>'
+      + '<div class="prep-firme">'
+      + '<span>✍️ <b>' + (pr.firmaRiempimento ? pr.firmaRiempimento.nome : '-') + '</b>'
+      + ' <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">'
+      + (pr.firmaRiempimento ? pr.firmaRiempimento.ts : '') + '</span></span>'
+      + '<span>🔍 <b>' + (pr.firmaControllo ? pr.firmaControllo.nome : '-') + '</b>'
+      + ' <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">'
+      + (pr.firmaControllo ? pr.firmaControllo.ts : '') + '</span></span>'
+      + '</div>'
+      + consegnaHtml + actionsHtml
+      + '</div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+// CONSEGNA MODAL
+// ════════════════════════════════════════════
+function showConsegnaModal(prepId) {
+  consegnaFirma = null;
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0">📦 Registra consegna</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">Data consegna</label>'
+    + '<input type="date" class="form-input" id="cons-data" value="' + todayISO() + '"></div>'
+    + '<div class="form-group"><label class="form-label">Destinatario *</label>'
+    + '<input type="text" class="form-input" id="cons-dest" placeholder="Nome paziente / familiare / EOC..."></div>'
+    + '<div class="form-group"><label class="form-label">Modalita</label>'
+    + '<select class="form-select" id="cons-modalita">'
+    + '<option>Ritiro in farmacia</option><option>Consegna EOC</option>'
+    + '<option>Consegna a domicilio</option><option>Consegnata a familiare</option>'
+    + '</select></div>'
+    + '<div class="form-group"><label class="form-label">Note</label>'
+    + '<input type="text" class="form-input" id="cons-note" placeholder="Opzionale"></div>'
+    + '<div class="card-title">FIRMA DI CHI CONSEGNA</div>'
+    + '<div id="cons-firma-wrap">'
+    + '<button class="btn btn-primary btn-full" onclick="apriPinConsegna(\'' + prepId + '\')">✍️ Firma chi consegna</button>'
+    + '</div>';
+  mostraModal(html);
+}
+
+function apriPinConsegna(prepId) {
+  pinBuffer = '';
+  pinCallback = 'consegna:' + prepId;
+  aggiornaSelectOperatori('Firma di chi effettua la consegna');
+  updatePinDots();
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+function salvaConsegna(firma) {
+  var prepId = pinCallback.split(':')[1];
+  var dest = document.getElementById('cons-dest') ? document.getElementById('cons-dest').value.trim() : '';
+  if (!dest) { showToast('Inserisci il destinatario', 'error'); return; }
+  var p = getCP();
+  var prep = p.preparazioni.find(function(pr){ return pr.id === prepId; });
+  if (!prep) { chiudiModal(); return; }
+  prep.consegna = {
+    data:        formatDate(document.getElementById('cons-data').value),
+    destinatario: dest,
+    modalita:    document.getElementById('cons-modalita').value,
+    note:        document.getElementById('cons-note').value.trim(),
+    operatore:   firma.nome + ' (' + firma.sigla + ')',
+    ts:          firma.ts
+  };
+  p.storico.push({
+    tipo:'consegna', data:todayISO(), medico:'-',
+    azione:'Dosette consegnate a ' + dest,
+    doc:'-', op:firma.sigla, visto:'-'
+  });
+  chiudiModal();
+  showToast('Consegna registrata ✓', 'success');
+  renderPreparazione(p);
+}
+
+// ════════════════════════════════════════════
+// ANNULLA PREPARAZIONE MODAL
+// ════════════════════════════════════════════
+function mostraAnnullaModal(prepId) {
+  annulloFirma = null;
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0;color:var(--danger)">🗑 Annulla preparazione</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div class="card" style="background:var(--danger-light);border-color:var(--danger);padding:12px 16px;margin-bottom:16px">'
+    + '<div style="font-size:13px;color:var(--danger);font-weight:600">La preparazione restera nello storico come ANNULLATA con indicazione di chi e quando.</div>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">Motivo annullamento *</label>'
+    + '<input type="text" class="form-input" id="annullo-motivo" placeholder="es. Errore di periodo, paziente ricoverato..."></div>'
+    + '<div class="card-title">FIRMA ANNULLAMENTO</div>'
+    + '<div id="annullo-firma-wrap">'
+    + '<button class="btn btn-danger btn-full" onclick="apriPinAnnullo(\'' + prepId + '\')">🔐 Firma per confermare</button>'
+    + '</div>';
+  mostraModal(html);
+}
+
+function apriPinAnnullo(prepId) {
+  pinBuffer = '';
+  pinCallback = 'annullo:' + prepId;
+  aggiornaSelectOperatori('Firma per autorizzare l\'annullamento');
+  updatePinDots();
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+function confermAnnullo(firma) {
+  var prepId = pinCallback.split(':')[1];
+  var motivo = document.getElementById('annullo-motivo') ? document.getElementById('annullo-motivo').value.trim() : '';
+  if (!motivo) { showToast('Inserisci il motivo', 'error'); return; }
+  var p = getCP();
+  var prep = p.preparazioni.find(function(pr){ return pr.id === prepId; });
+  if (!prep) { chiudiModal(); return; }
+  prep.annullata   = true;
+  prep.annullataDA = firma.nome + ' (' + firma.sigla + ')';
+  prep.annullataIL = now();
+  prep.motivoAnnullo = motivo;
+  p.storico.push({
+    tipo:'annullo', data:todayISO(), medico:'-',
+    azione:'Preparazione annullata: ' + motivo,
+    doc:'-', op:firma.sigla, visto:'-'
+  });
+  chiudiModal();
+  showToast('Preparazione annullata', 'success');
+  renderPreparazione(p);
+}
+
+// ════════════════════════════════════════════
+// ANAGRAFICA
+// ════════════════════════════════════════════
+function renderAnagrafica(p) {
+  var html = '<div class="info-row"><span class="info-key">Cognome e nome</span><span class="info-val">' + p.cognome + ' ' + p.nome + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Data di nascita</span><span class="info-val">' + formatDate(p.ddn) + ' (' + formatAge(p.ddn) + ')</span></div>'
+    + '<div class="info-row"><span class="info-key">Medico</span><span class="info-val">' + p.medico + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Giorno ritiro</span><span class="info-val">' + p.giorno + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Consegna</span><span class="info-val">' + p.consegna + '</span></div>';
+  if (p.allergie) {
+    html += '<div class="info-row" style="background:var(--danger-light);margin:0 -18px;padding:10px 18px;border-radius:8px">'
+      + '<span class="info-key" style="color:var(--danger)">⚠️ Allergie</span>'
+      + '<span class="info-val" style="color:var(--danger);font-weight:700">' + p.allergie + '</span></div>';
+  }
+  if (p.note) {
+    html += '<div style="margin-top:12px;padding:12px;background:var(--warning-light);border-radius:8px;font-size:14px;color:var(--warning)">📝 ' + p.note + '</div>';
+  }
+  document.getElementById('anagrafica-content').innerHTML = html;
+}
+
+// ════════════════════════════════════════════
+// STORICO — con dettaglio terapia
+// ════════════════════════════════════════════
+function renderStorico(p) {
+  var el = document.getElementById('storico-content');
+  if (!p.storico || !p.storico.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📜</div><p>Nessuna voce registrata</p></div>';
+    return;
+  }
+  el.innerHTML = p.storico.slice().reverse().map(function(s){
+    var tipo       = s.tipo || 'terapia';
+    var cls        = tipo === 'annullo' ? 'canceled' : tipo === 'preparazione' ? 'prep-entry' : tipo === 'consegna' ? 'consegna-entry' : '';
+    var icon       = tipo === 'consegna' ? '📦' : tipo === 'preparazione' ? '📋' : tipo === 'annullo' ? '⚠️' : '💊';
+    var hasMedico  = s.medico && s.medico !== '-';
+    var hasDoc     = s.doc && s.doc !== '-';
+    var hasVisto   = s.visto && s.visto !== '-';
+    var hasDetail  = tipo === 'terapia' && s.versione &&
+      (TERAPIE_STORICHE[p.id + '-v' + s.versione] || s.versione === p.versione);
+    var detailBtn  = hasDetail
+      ? '<div class="storico-actions"><button class="btn btn-sm btn-ghost" onclick="mostraDettaglioTerapia(\''
+        + p.id + '\',' + s.versione + ')">🔍 Vedi terapia v' + s.versione + '</button></div>'
+      : '';
+    return '<div class="storico-item ' + cls + '">'
+      + '<div class="storico-date">' + formatDate(s.data) + ' ' + icon
+      + (hasMedico ? ' · ' + s.medico : '')
+      + (hasDoc ? ' · ' + s.doc : '') + '</div>'
+      + '<div class="storico-action">' + s.azione + '</div>'
+      + '<div class="storico-detail">Op: <b>' + s.op + '</b>'
+      + (hasVisto ? ' · Visto: <b>' + s.visto + '</b>' : '') + '</div>'
+      + detailBtn
+      + '</div>';
+  }).join('');
+}
+
+function mostraDettaglioTerapia(pazId, versione) {
+  var p = getPaziente(pazId);
+  var t = (versione === p.versione) ? p.terapia : (TERAPIE_STORICHE[pazId + '-v' + versione] || p.terapia);
+  mostraModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+    + '<div><div class="modal-title" style="margin:0">Terapia v' + versione + '</div>'
+    + '<div style="font-size:12px;color:var(--text2);margin-top:2px">'
+    + p.cognome + ' ' + p.nome + ' · Schema del ' + formatDate(t.dataSchema) + '</div></div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div style="overflow-x:auto"><table class="farmaci-table" style="min-width:320px">'
+    + buildTerapiaTable(t)
+    + '</table></div>'
+  );
+}
+
+// ════════════════════════════════════════════
+// CHECKLIST
+// ════════════════════════════════════════════
+function avviaChecklist() {
+  var dal = document.getElementById('prep-dal').value;
+  var al  = document.getElementById('prep-al').value;
+  if (!dal || !al) { showToast('Inserisci il periodo coperto', 'error'); return; }
+  prepCorrente = {dal: dal, al: al};
+  var p = getCP();
+  firmaRiempimento = null; firmaControllo = null;
+  _checkedFissi = new Set(); _checkedAuto = new Set();
+  document.getElementById('checklist-subtitle').textContent =
+    p.cognome + ' ' + p.nome + ' · ' + formatDate(dal) + ' – ' + formatDate(al);
+  renderAllergieBar('allergie-bar-prep', p);
+  renderChecklist(p);
+  showScreen('screen-checklist');
+}
+
+function renderChecklist(p) {
+  var t = p.terapia;
+  document.getElementById('checklist-fissi').innerHTML = t.fissi.map(function(f, i){
+    var ds  = [f.mat, f.mez, f.ser, f.not];
+    var lbl = ['M','P','S','N'];
+    var dStr = lbl.map(function(l, j){ return (ds[j] && +ds[j] !== 0) ? l + ':' + ds[j] : null; })
+                  .filter(Boolean).join(' · ');
+    return '<div class="checklist-item" id="ci-' + i + '" onclick="toggleCheck(' + i + ')">'
+      + '<div class="checklist-checkbox" id="cb-' + i + '"></div>'
+      + '<div class="checklist-text">'
+      + '<div class="checklist-farmaco">' + f.nome + '</div>'
+      + '<div class="checklist-dose">' + dStr + (f.note ? ' · ' + f.note : '') + '</div>'
+      + '</div></div>';
+  }).join('');
+
+  var autoSec = document.getElementById('checklist-autogestiti-section');
+  if (t.autogestiti.length) {
+    autoSec.style.display = '';
+    document.getElementById('checklist-autogestiti').innerHTML = t.autogestiti.map(function(f, i){
+      return '<div class="checklist-item" id="ca-' + i + '" onclick="toggleCheckAuto(' + i + ')">'
+        + '<div class="checklist-checkbox" id="cba-' + i + '"></div>'
+        + '<div class="checklist-text">'
+        + '<div class="checklist-farmaco">' + f.nome + '</div>'
+        + '<div class="checklist-dose">' + f.istruzioni + '</div>'
+        + '</div></div>';
+    }).join('');
+  } else {
+    autoSec.style.display = 'none';
+  }
+
+  updateProgress();
+  document.getElementById('firma-riempimento-wrap').innerHTML =
+    '<button class="btn btn-primary btn-full" onclick="richiediFirma(\'riempimento\')">✍️ Firma come Riempitore</button>';
+  document.getElementById('firma-controllo-wrap').innerHTML =
+    '<div style="color:var(--text3);font-size:14px;text-align:center;padding:12px">⏳ In attesa della firma di riempimento</div>';
+  document.getElementById('btn-completa-prep').style.display = 'none';
+}
+
+function toggleCheck(i) {
+  var item = document.getElementById('ci-' + i);
+  var cb   = document.getElementById('cb-' + i);
+  if (_checkedFissi.has(i)) {
+    _checkedFissi.delete(i); item.classList.remove('checked'); cb.textContent = '';
+  } else {
+    _checkedFissi.add(i);   item.classList.add('checked');    cb.textContent = '✓';
+  }
+  updateProgress();
+}
+function toggleCheckAuto(i) {
+  var item = document.getElementById('ca-' + i);
+  var cb   = document.getElementById('cba-' + i);
+  if (_checkedAuto.has(i)) {
+    _checkedAuto.delete(i); item.classList.remove('checked'); cb.textContent = '';
+  } else {
+    _checkedAuto.add(i);   item.classList.add('checked');    cb.textContent = '✓';
+  }
+}
+function updateProgress() {
+  var p     = getCP();
+  var total   = p.terapia.fissi.length;
+  var checked = _checkedFissi.size;
+  var pct = total > 0 ? Math.round(checked / total * 100) : 0;
+  document.getElementById('progress-fill').style.width   = pct + '%';
+  document.getElementById('progress-label').textContent  = checked + ' di ' + total + ' completati';
+  document.getElementById('check-progress').textContent  = checked + '/' + total;
+}
+
+// ════════════════════════════════════════════
+// PIN SYSTEM
+// ════════════════════════════════════════════
+function aggiornaSelectOperatori(subtitle) {
+  document.getElementById('pin-error').textContent = '';
+  var sel = document.getElementById('pin-operatore');
+  sel.innerHTML = '<option value="">— Seleziona operatore —</option>'
+    + OPERATORI.filter(function(o){ return o.attivo !== false; })
+               .map(function(o){
+                 return '<option value="' + o.sigla + '">' + o.nome + ' · ' + o.ruolo + ' (' + o.sigla + ')</option>';
+               }).join('');
+  if (subtitle) document.getElementById('pin-subtitle').textContent = subtitle;
+}
+
+function richiediFirma(tipo) {
+  pinBuffer   = '';
+  pinCallback = tipo;
+  var subtitles = {
+    riempimento: 'Firma di riempimento dosettes',
+    controllo:   'Firma di controllo (persona diversa dal riempitore)'
+  };
+  aggiornaSelectOperatori(subtitles[tipo] || 'Inserisci PIN');
+  updatePinDots();
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+function pinKey(k) {
+  if (k === 'del') {
+    pinBuffer = pinBuffer.slice(0, -1);
+  } else if (k === 'ok') {
+    verificaPin(); return;
+  } else if (pinBuffer.length < 4) {
+    pinBuffer += k;
+  }
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(verificaPin, 150);
+}
+
+function updatePinDots() {
+  document.querySelectorAll('.pin-dot').forEach(function(d, i){
+    d.classList.toggle('filled', i < pinBuffer.length);
+    d.classList.remove('error');
+  });
+}
+
+function verificaPin() {
+  var sigla = document.getElementById('pin-operatore').value;
+  if (!sigla) { document.getElementById('pin-error').textContent = 'Seleziona il tuo nome'; return; }
+  var op = OPERATORI.find(function(o){ return o.sigla === sigla; });
+  if (!op) return;
+
+  // Blocco: controllore = riempitore
+  if (pinCallback === 'controllo' && firmaRiempimento && firmaRiempimento.sigla === sigla) {
+    errorePin('❌ Il controllore deve essere diverso dal riempitore'); return;
+  }
+  if (op.pin !== pinBuffer) { errorePin('❌ PIN errato'); return; }
+
+  var firma = { nome: op.nome, sigla: op.sigla, ruolo: op.ruolo || '', ts: now() };
+  chiudiPin();
+
+  // Dispatcher in base al callback
+  if (pinCallback === 'riempimento') {
+    firmaRiempimento = firma;
+    document.getElementById('firma-riempimento-wrap').innerHTML = firmaBox(firma, '✍️');
+    document.getElementById('firma-controllo-wrap').innerHTML =
+      '<button class="btn btn-outline btn-full" onclick="richiediFirma(\'controllo\')">🔍 Firma come Controllore</button>';
+    showToast('Firma riempimento registrata ✓', 'success');
+
+  } else if (pinCallback === 'controllo') {
+    firmaControllo = firma;
+    document.getElementById('firma-controllo-wrap').innerHTML = firmaBox(firma, '🔍');
+    document.getElementById('btn-completa-prep').style.display = '';
+    showToast('Firma controllo registrata ✓', 'success');
+
+  } else if (pinCallback && pinCallback.indexOf('consegna:') === 0) {
+    consegnaFirma = firma;
+    var wrapC = document.getElementById('cons-firma-wrap');
+    if (wrapC) {
+      var prepIdC = pinCallback.split(':')[1];
+      wrapC.innerHTML = firmaBox(firma, '📦')
+        + '<button class="btn btn-primary btn-full" style="margin-top:12px" '
+        + 'onclick="salvaConsegna(consegnaFirma)">✅ Salva consegna</button>';
+    }
+
+  } else if (pinCallback && pinCallback.indexOf('annullo:') === 0) {
+    annulloFirma = firma;
+    var wrapA = document.getElementById('annullo-firma-wrap');
+    if (wrapA) {
+      wrapA.innerHTML = firmaBox(firma, '🗑')
+        + '<button class="btn btn-danger btn-full" style="margin-top:12px" '
+        + 'onclick="confermAnnullo(annulloFirma)">✅ Conferma annullamento</button>';
+    }
+  }
+}
+
+function errorePin(msg) {
+  document.getElementById('pin-error').textContent = msg;
+  document.querySelectorAll('.pin-dot').forEach(function(d){ d.classList.add('error'); });
+  pinBuffer = '';
+  setTimeout(updatePinDots, 800);
+}
+
+function firmaBox(f, icon) {
+  return '<div class="firma-confirmed">'
+    + '<span class="firma-icon">' + icon + '</span>'
+    + '<div class="firma-info">'
+    + '<div class="firma-nome">' + f.nome + ' (' + f.sigla + ')' + (f.ruolo ? ' · ' + f.ruolo : '') + '</div>'
+    + '<div class="firma-ts">' + f.ts + '</div>'
+    + '</div></div>';
+}
+
+function chiudiPin() {
+  document.getElementById('pin-overlay').style.display = 'none';
+  pinBuffer = '';
+}
+
+// ════════════════════════════════════════════
+// COMPLETA PREPARAZIONE
+// ════════════════════════════════════════════
+function completaPreparazione() {
+  var p = getCP();
+  var prep = {
+    id:              'PREP' + Date.now(),
+    data:            now(),
+    periodo:         formatDate(prepCorrente.dal) + ' – ' + formatDate(prepCorrente.al),
+    firmaRiempimento: firmaRiempimento,
+    firmaControllo:   firmaControllo,
+    versione:         p.versione,
+    esito:           'OK',
+    annullata:        false
+  };
+  p.preparazioni.push(prep);
+  p.storico.push({
+    tipo:'preparazione', data:todayISO(), medico:'-',
+    azione:'Preparazione dosettes ' + prep.periodo,
+    doc:'checklist', op:firmaRiempimento.sigla, visto:firmaControllo.sigla
+  });
+  showToast('Preparazione salvata!', 'success');
+  _checkedFissi = new Set(); _checkedAuto = new Set();
+  showScreen('screen-paziente');
+  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 1); });
+  switchTab('preparazione', null);
+}
+
+// ════════════════════════════════════════════
+// MODIFICA TERAPIA
+// ════════════════════════════════════════════
+function showModificaTerapia() {
+  var p = getCP();
+  editFissi       = p.terapia.fissi.map(function(f){ return Object.assign({}, f); });
+  editAutogestiti = p.terapia.autogestiti.map(function(f){ return Object.assign({}, f); });
+  editRiserva     = p.terapia.riserva.map(function(f){ return Object.assign({}, f); });
+  document.getElementById('motivo-modifica').value = '';
+  document.getElementById('edit-medico').value     = p.medico;
+  renderEditSection('fisso'); renderEditSection('autogestito'); renderEditSection('riserva');
+  showScreen('screen-modifica-terapia');
+}
+
+function renderEditSection(tipo) {
+  var arr   = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
+  var elId  = tipo === 'fisso' ? 'edit-fissi' : tipo === 'autogestito' ? 'edit-autogestiti' : 'edit-riserva';
+  var el    = document.getElementById(elId);
+  if (!arr.length) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:14px;text-align:center;padding:10px">Nessun farmaco · usa + Aggiungi</div>';
+    return;
+  }
+  el.innerHTML = arr.map(function(f, i){
+    if (tipo === 'fisso') {
+      return '<div class="farmaco-edit-card">'
+        + '<button class="farmaco-delete-btn" onclick="eliminaFarmaco(\'' + tipo + '\',' + i + ')">✕</button>'
+        + '<input type="text" class="form-input" style="margin-bottom:8px;font-weight:600" value="' + escHtml(f.nome) + '"'
+        + ' onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'nome\',this.value)"'
+        + ' placeholder="Nome farmaco + dosaggio">'
+        + '<div class="dose-grid">'
+        + ['mat','mez','ser','not'].map(function(d, di){
+            return '<div class="dose-cell">'
+              + '<div class="dose-label">' + ['Mattino','Mezzo','Sera','Notte'][di] + '</div>'
+              + '<input type="number" class="dose-input" min="0" max="10" step="0.5" value="' + (f[d] || '') + '"'
+              + ' placeholder="0" onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'' + d + '\',this.value)">'
+              + '</div>';
+          }).join('')
+        + '</div>'
+        + '<input type="text" class="form-input" style="margin-top:8px;font-size:14px" value="' + escHtml(f.note || '') + '"'
+        + ' onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'note\',this.value)" placeholder="Note (opzionale)">'
+        + '</div>';
+    } else {
+      return '<div class="farmaco-edit-card">'
+        + '<button class="farmaco-delete-btn" onclick="eliminaFarmaco(\'' + tipo + '\',' + i + ')">✕</button>'
+        + '<input type="text" class="form-input" style="margin-bottom:8px;font-weight:600" value="' + escHtml(f.nome) + '"'
+        + ' onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'nome\',this.value)" placeholder="Nome farmaco">'
+        + '<input type="text" class="form-input" value="' + escHtml(f.istruzioni || '') + '"'
+        + ' onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'istruzioni\',this.value)" placeholder="Istruzioni">'
+        + '</div>';
+    }
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function updateFarmaco(tipo, i, campo, val) {
+  var arr = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
+  arr[i][campo] = (['mat','mez','ser','not'].indexOf(campo) !== -1) ? (parseFloat(val) || 0) : val;
+}
+function eliminaFarmaco(tipo, i) {
+  var arr = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
+  arr.splice(i, 1);
+  renderEditSection(tipo);
+  showToast('Farmaco rimosso');
+}
+function aggiungiFarmaco(tipo) {
+  var arr = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
+  arr.push(tipo === 'fisso' ? {nome:'',mat:0,mez:0,ser:0,not:0,note:''} : {nome:'',istruzioni:''});
+  renderEditSection(tipo);
+  var elId = tipo === 'fisso' ? 'edit-fissi' : tipo === 'autogestito' ? 'edit-autogestiti' : 'edit-riserva';
+  setTimeout(function(){
+    var cards = document.getElementById(elId).querySelectorAll('.farmaco-edit-card');
+    var last  = cards[cards.length - 1];
+    if (last) { last.classList.add('nuovo'); last.scrollIntoView({behavior:'smooth',block:'center'}); last.querySelector('input').focus(); }
+  }, 50);
+}
+
+function salvaNuovaVersione() {
+  var motivo    = document.getElementById('motivo-modifica').value.trim();
+  var medico    = document.getElementById('edit-medico').value.trim();
+  var documento = document.getElementById('edit-documento').value;
+  if (!motivo) { showToast('Inserisci il motivo della modifica', 'error'); return; }
+  var p = getCP();
+  // Salva snapshot della terapia corrente
+  TERAPIE_STORICHE[p.id + '-v' + p.versione] = {
+    dataSchema:   p.terapia.dataSchema,
+    fissi:        p.terapia.fissi.map(function(f){ return Object.assign({}, f); }),
+    autogestiti:  p.terapia.autogestiti.map(function(f){ return Object.assign({}, f); }),
+    riserva:      p.terapia.riserva.map(function(f){ return Object.assign({}, f); })
+  };
+  p.versione++;
+  p.terapia.dataSchemaPrecedente = p.terapia.dataSchema;
+  p.terapia.dataSchema    = todayISO();
+  p.terapia.fissi         = editFissi.filter(function(f){ return f.nome.trim(); });
+  p.terapia.autogestiti   = editAutogestiti.filter(function(f){ return f.nome.trim(); });
+  p.terapia.riserva       = editRiserva.filter(function(f){ return f.nome.trim(); });
+  p.storico.push({
+    tipo:'terapia', data:todayISO(),
+    medico: medico || p.medico,
+    azione: motivo, doc: documento,
+    op:'-', visto:'-', versione: p.versione
+  });
+  showToast('Terapia v' + p.versione + ' salvata!', 'success');
+  showScreen('screen-paziente');
+  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 0); });
+  switchTab('terapia', null);
+}
+
+// ════════════════════════════════════════════
+// NUOVO PAZIENTE
+// ════════════════════════════════════════════
+function salvaNuovoPaziente() {
+  var cognome = document.getElementById('new-cognome').value.trim();
+  var nome    = document.getElementById('new-nome').value.trim();
+  var ddn     = document.getElementById('new-ddn').value;
+  if (!cognome || !nome || !ddn) { showToast('Compila i campi obbligatori', 'error'); return; }
+  var newP = {
+    id:        'P' + Date.now(),
+    cognome: cognome, nome: nome, ddn: ddn,
+    medico:    document.getElementById('new-medico').value.trim(),
+    giorno:    document.getElementById('new-giorno').value,
+    consegna:  document.getElementById('new-consegna').value,
+    allergie:  document.getElementById('new-allergie').value.trim(),
+    note:      document.getElementById('new-note').value.trim(),
+    versione:  1,
+    terapia:   { dataSchema:todayISO(), dataSchemaPrecedente:null, fissi:[], autogestiti:[], riserva:[] },
+    storico:   [{tipo:'terapia',data:todayISO(),medico:'-',azione:'Nuovo paziente creato',doc:'-',op:'-',visto:'-',versione:1}],
+    preparazioni: []
+  };
+  DB.pazienti.push(newP);
+  ['new-cognome','new-nome','new-ddn','new-medico','new-allergie','new-note'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  showToast('Paziente creato ✓', 'success');
+  renderHome();
+  showScreen('screen-home');
+}
+
+// ════════════════════════════════════════════
+// GESTIONE OPERATORI
+// ════════════════════════════════════════════
+function renderOperatori() {
+  var el = document.getElementById('operatori-list');
+  if (!el) return;
+  el.innerHTML = OPERATORI.map(function(o, i){
+    var stars = '';
+    for (var k = 0; k < o.pin.length; k++) stars += '●';
+    return '<div class="operatore-row">'
+      + '<div class="op-avatar">' + o.sigla + '</div>'
+      + '<div class="op-info">'
+      + '<div class="op-nome">' + o.nome + '</div>'
+      + '<div class="op-ruolo">' + o.ruolo + ' · PIN: ' + stars + ' · Sigla: ' + o.sigla + '</div>'
+      + '</div>'
+      + '<button class="op-delete" onclick="rimuoviOperatore(' + i + ')" title="Rimuovi">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function showModalNuovoOperatore() {
+  mostraModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0">➕ Nuovo operatore</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">Nome completo *</label>'
+    + '<input type="text" class="form-input" id="new-op-nome" autocapitalize="words"></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+    + '<div class="form-group"><label class="form-label">Sigla (2-3 car.) *</label>'
+    + '<input type="text" class="form-input" id="new-op-sigla" maxlength="3" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>'
+    + '<div class="form-group"><label class="form-label">Ruolo</label>'
+    + '<select class="form-select" id="new-op-ruolo"><option>Farmacista</option><option>Assistente</option></select></div>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">PIN (4 cifre) *</label>'
+    + '<input type="password" class="form-input" id="new-op-pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="4 cifre"></div>'
+    + '<button class="btn btn-primary btn-full" style="margin-top:8px" onclick="salvaOperatore()">✅ Aggiungi operatore</button>'
+  );
+}
+
+function salvaOperatore() {
+  var nome  = document.getElementById('new-op-nome')  ? document.getElementById('new-op-nome').value.trim()  : '';
+  var sigla = document.getElementById('new-op-sigla') ? document.getElementById('new-op-sigla').value.trim().toUpperCase() : '';
+  var ruolo = document.getElementById('new-op-ruolo') ? document.getElementById('new-op-ruolo').value : '';
+  var pin   = document.getElementById('new-op-pin')   ? document.getElementById('new-op-pin').value.trim()   : '';
+  if (!nome || !sigla || !pin) { showToast('Compila tutti i campi', 'error'); return; }
+  if (!/^\d{4}$/.test(pin)) { showToast('PIN deve essere 4 cifre numeriche', 'error'); return; }
+  if (OPERATORI.find(function(o){ return o.sigla === sigla; })) { showToast('Sigla gia in uso', 'error'); return; }
+  OPERATORI.push({sigla:sigla, nome:nome, ruolo:ruolo, pin:pin});
+  chiudiModal();
+  renderOperatori();
+  showToast(nome + ' aggiunto ✓', 'success');
+}
+
+function rimuoviOperatore(i) {
+  var op = OPERATORI[i];
+  if (!confirm('Rimuovere ' + op.nome + ' (' + op.sigla + ')?\nNon potra piu firmare.')) return;
+  OPERATORI.splice(i, 1);
+  renderOperatori();
+  showToast(op.nome + ' rimosso', 'success');
+}
+
+// ════════════════════════════════════════════
+// STAMPA
+// ════════════════════════════════════════════
+function stampaTerapia() {
+  var p = getCP();
+  var t = p.terapia;
+  var fissiRows = (t.fissi || []).map(function(f){
+    return '<tr>'
+      + '<td style="text-align:left;padding:5px 8px;font-size:12px;font-weight:500">' + f.nome + '</td>'
+      + '<td style="text-align:center;padding:5px;font-size:13px;font-weight:700">' + (f.mat || '·') + '</td>'
+      + '<td style="text-align:center;padding:5px;font-size:13px;font-weight:700">' + (f.mez || '·') + '</td>'
+      + '<td style="text-align:center;padding:5px;font-size:13px;font-weight:700">' + (f.ser || '·') + '</td>'
+      + '<td style="text-align:center;padding:5px;font-size:13px;font-weight:700">' + (f.not || '·') + '</td>'
+      + '<td style="padding:5px;font-size:11px;color:#666">' + (f.note || '') + '</td>'
+      + '</tr>';
+  }).join('');
+
+  var storHtml = p.storico.filter(function(s){ return s.tipo === 'terapia'; }).map(function(s){
+    return '<tr>'
+      + '<td style="padding:4px 6px">' + formatDate(s.data) + '</td>'
+      + '<td style="padding:4px 6px">' + s.medico + '</td>'
+      + '<td style="padding:4px 6px">' + s.azione  + '</td>'
+      + '<td style="padding:4px 6px;color:#666">' + s.doc + '</td>'
+      + '<td style="padding:4px 6px;text-align:center;font-weight:700">' + s.op + '</td>'
+      + '<td style="padding:4px 6px;text-align:center;font-weight:700">' + s.visto + '</td>'
+      + '</tr>';
+  }).join('');
+
+  document.getElementById('stampa-content').innerHTML =
+    '<div style="font-family:\'DM Sans\',sans-serif;max-width:700px;margin:0 auto">'
+    + '<div style="border:2px solid #1B4332;border-radius:8px;overflow:hidden;margin-bottom:24px">'
+    + '<div style="background:#1B4332;color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">'
+    + '<div><div style="font-size:18px;font-weight:700">' + p.cognome + ' ' + p.nome + ' · ' + formatDate(p.ddn) + '</div>'
+    + '<div style="font-size:12px;opacity:0.8">Medico: ' + p.medico + ' · ' + p.giorno + ' · ' + p.consegna + '</div></div>'
+    + '<div style="text-align:right;font-size:12px;opacity:0.8">'
+    + '<div>Schema v' + p.versione + ': ' + formatDate(t.dataSchema) + '</div>'
+    + '<div>Prec.: ' + formatDate(t.dataSchemaPrecedente) + '</div></div></div>'
+    + (p.allergie ? '<div style="background:#C0392B;color:white;padding:8px 16px;font-weight:700;font-size:14px">⚠️ ALLERGIE: ' + p.allergie + '</div>' : '')
+    + (p.note     ? '<div style="background:#FEF3E2;padding:8px 16px;font-size:12px;color:#E67E22;font-weight:600">📝 ' + p.note + '</div>' : '')
+    + '<div style="padding:12px 16px 0">'
+    + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#999;margin-bottom:6px">Farmaci fissi</div>'
+    + '<table style="width:100%;border-collapse:collapse"><tr style="background:#f5f5f5">'
+    + '<th style="text-align:left;padding:6px 8px;font-size:10px;color:#666">Farmaco</th>'
+    + '<th style="padding:6px;font-size:10px;color:#666">Mat</th><th style="padding:6px;font-size:10px;color:#666">Mez</th>'
+    + '<th style="padding:6px;font-size:10px;color:#666">Ser</th><th style="padding:6px;font-size:10px;color:#666">Not</th>'
+    + '<th style="text-align:left;padding:6px;font-size:10px;color:#666">Note</th></tr>'
+    + fissiRows + '</table></div>'
+    + '<div style="padding:8px 16px;border-top:1px solid #eee;margin-top:8px">'
+    + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:8px">Storico modifiche</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f5f5f5">'
+    + '<th style="text-align:left;padding:4px 6px;color:#666">Data</th>'
+    + '<th style="text-align:left;padding:4px 6px;color:#666">Medico</th>'
+    + '<th style="text-align:left;padding:4px 6px;color:#666">Modifica</th>'
+    + '<th style="padding:4px 6px;color:#666">Doc</th>'
+    + '<th style="padding:4px 6px;color:#666">Op</th>'
+    + '<th style="padding:4px 6px;color:#666">Visto</th></tr>'
+    + storHtml + '</table></div>'
+    + '<div style="background:#f9f9f9;padding:10px 16px;font-size:11px;color:#999;border-top:1px solid #eee">'
+    + 'Farmacia Ascona · Viale Monte Verità 3 · 6612 Ascona · Tel. 091 791 0102</div></div>'
+    + '<button onclick="window.print()" style="margin-top:16px;padding:14px 28px;background:#1B4332;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer">🖨 Stampa</button>'
+    + '</div>';
+  showScreen('screen-stampa');
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+document.getElementById('header-date').textContent =
+  new Date().toLocaleDateString('it-CH', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+renderHome();
+
+</script>
+
+<style>
+@media print {
+  #screen-home, #screen-paziente .header, .fab, .tabs,
+  #btn-completa-prep button, .pin-overlay { display: none !important; }
+  .screen { display: block !important; }
+  #screen-stampa { display: block !important; }
+  body { background: white !important; }
+}
+</style>
+</body>
+</html>
