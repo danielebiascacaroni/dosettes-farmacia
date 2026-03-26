@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Dosettes – Farmacia Ascona</title>
+<title>Dosettes v8 – Farmacia Ascona</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- ════════════════════════════════════════════
      FIREBASE SDK (Compat v10) — CDN ufficiale Google
@@ -11,6 +11,7 @@
 ════════════════════════════════════════════ -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 :root {
   --bg: #F4F2EE;
@@ -1253,6 +1254,8 @@ if (FIREBASE_ENABLED) {
   try {
     firebase.initializeApp(firebaseConfig);
     firestoreDB = firebase.firestore();
+    // Fase 1.5: auth anonima per Security Rules "request.auth != null"
+    firebase.auth().signInAnonymously().catch(function(e){ console.warn('Auth anonima fallita:', e.code); });
   } catch(e) {
     console.error('Errore init Firebase:', e.message);
     FIREBASE_ENABLED = false;
