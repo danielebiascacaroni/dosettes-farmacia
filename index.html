@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Dosettes v8 – Farmacia Ascona</title>
+<title>Dosettes v8 V2 – Farmacia Ascona</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- ════════════════════════════════════════════
      FIREBASE SDK (Compat v10) — CDN ufficiale Google
@@ -821,7 +821,7 @@ body {
 
 <div id="screen-home" class="screen">
   <div class="logo-header">
-    <div class="logo-name">💊 Dosettes</div>
+    <div class="logo-name">💊 Dosettes V2</div>
     <div class="logo-sub">viale Monte Verità 3 · CH-6612 Ascona</div>
     <div class="logo-date" id="header-date"></div>
   </div>
@@ -2229,6 +2229,53 @@ document.addEventListener('touchstart', resetSessionTimer, { passive: true });
 document.addEventListener('click', resetSessionTimer);
 document.addEventListener('keydown', resetSessionTimer);
 
+function buildPreparazionePayload(p, esito) {
+  if (!prepCorrente || !firmaRiempimento) return null;
+  return {
+    id:                   prepCorrente.id,
+    data:                 prepCorrente.dataCreazione || now(),
+    dataUltimoAggiornamento: now(),
+    periodo:              formatDate(prepCorrente.dal) + ' – ' + formatDate(prepCorrente.al),
+    numeroDosette:        prepCorrente.numeroDosette || '',
+    firmaRiempimento:     firmaRiempimento,
+    firmaControllo:       firmaControllo || null,
+    versione:             p.versione,
+    checklistCompletata:  Array.from(_checkedItems || new Set()),
+    totalItemsChecklist:  (_checklistItems || []).length,
+    esito:                esito,
+    annullata:            false,
+    inCorso:              esito !== 'OK'
+  };
+}
+
+function upsertPreparazione(p, prep) {
+  if (!prep) return;
+  var idx = (p.preparazioni || []).findIndex(function(pr){ return pr.id === prep.id; });
+  if (idx >= 0) {
+    p.preparazioni[idx] = Object.assign({}, p.preparazioni[idx], prep);
+  } else {
+    p.preparazioni.push(prep);
+  }
+}
+
+function registraStoricoPreparazione(p, prep, opSigla, vistoSigla, isUpdate) {
+  var azione = 'Preparazione dosette N° ' + (prep.numeroDosette || '?') + ' · ' + prep.periodo;
+  if (prep.esito === 'AUTO-SALVATO') azione += ' [auto-salvato al blocco]';
+  var entry = {
+    tipo:'preparazione', data:todayISO(), medico:'-',
+    azione: azione,
+    doc:'checklist', op: opSigla || '-', visto: vistoSigla || '-'
+  };
+  if (!p.storico) p.storico = [];
+  var idx = p.storico.findIndex(function(s){ return s.tipo === 'preparazione' && s.prepId === prep.id; });
+  entry.prepId = prep.id;
+  if (idx >= 0) {
+    p.storico[idx] = Object.assign({}, p.storico[idx], entry);
+  } else {
+    p.storico.push(entry);
+  }
+}
+
 
 // ════════════════════════════════════════════
 // AUTO-SALVATAGGIO al timeout
@@ -2237,32 +2284,11 @@ function salvaPreparazioneAuto() {
   if (!prepCorrente || !firmaRiempimento) return;
   var p = getCP();
   if (!p) return;
-  var prep = {
-    id:                  'PREP' + Date.now(),
-    data:                now(),
-    periodo:             formatDate(prepCorrente.dal) + ' – ' + formatDate(prepCorrente.al),
-    numeroDosette:       prepCorrente.numeroDosette || '',
-    firmaRiempimento:    firmaRiempimento,
-    firmaControllo:      firmaControllo || null,
-    versione:            p.versione,
-    checklistCompletata: Array.from(_checkedItems || new Set()),
-    totalItemsChecklist: (_checklistItems || []).length,
-    esito:               firmaControllo ? 'OK' : 'AUTO-SALVATO',
-    annullata:           false
-  };
-  p.preparazioni.push(prep);
-  p.storico.push({
-    tipo:'preparazione', data:todayISO(), medico:'-',
-    azione:'Preparazione dosette N° ' + (prep.numeroDosette||'?') + ' · ' + prep.periodo
-           + (firmaControllo ? '' : ' [auto-salvato al blocco]'),
-    doc:'checklist',
-    op:    firmaRiempimento.sigla,
-    visto: firmaControllo ? firmaControllo.sigla : '-'
-  });
+  var prep = buildPreparazionePayload(p, firmaControllo ? 'OK' : 'AUTO-SALVATO');
+  if (!prep) return;
+  upsertPreparazione(p, prep);
+  registraStoricoPreparazione(p, prep, firmaRiempimento.sigla, firmaControllo ? firmaControllo.sigla : '-', true);
   sincronizzaPaziente(p);
-  firmaRiempimento = null; firmaControllo = null; prepCorrente = null;
-  _checkedFissi = new Set(); _checkedAuto = new Set();
-  if (typeof _checkedItems !== 'undefined') _checkedItems = new Set();
   showToast('Preparazione auto-salvata', 'success');
 }
 
@@ -2322,7 +2348,7 @@ function lockPinClear() {
 
 function updateLockPinDots() {
   for (var i = 0; i < 4; i++) {
-    var d = document.getElementById('ld' + i);
+    var d = document.getElementById('lk' + i);
     if (d) d.classList.toggle('filled', i < _lockPinBuf.length);
   }
 }
@@ -2348,7 +2374,7 @@ async function lockPinConfirm() {
   } else {
     errEl.textContent = 'PIN errato';
     for (var i = 0; i < 4; i++) {
-      var dd = document.getElementById('ld' + i);
+      var dd = document.getElementById('lk' + i);
       if (dd) { dd.classList.add('error'); setTimeout(function(x){ return function(){ x.classList.remove('error'); }; }(dd), 600); }
     }
   }
@@ -2374,7 +2400,7 @@ function avviaChecklist() {
   var al  = document.getElementById('prep-al').value;
   if (!dal || !al) { showToast('Inserisci il periodo coperto', 'error'); return; }
   var numDosette = (document.getElementById('prep-numDosette') || {value: ''}).value;
-  prepCorrente = {dal: dal, al: al, numeroDosette: numDosette};
+  prepCorrente = {id:'PREP' + Date.now(), dataCreazione: now(), dal: dal, al: al, numeroDosette: numDosette};
   var p = getCP();
   firmaRiempimento = null; firmaControllo = null;
   _checkedFissi = new Set(); _checkedAuto = new Set();
@@ -2640,28 +2666,16 @@ function chiudiPin() {
 // ════════════════════════════════════════════
 function completaPreparazione() {
   var p = getCP();
-  var prep = {
-    id:                   'PREP' + Date.now(),
-    data:                 now(),
-    periodo:              formatDate(prepCorrente.dal) + ' – ' + formatDate(prepCorrente.al),
-    numeroDosette:        prepCorrente.numeroDosette || '',
-    firmaRiempimento:     firmaRiempimento,
-    firmaControllo:       firmaControllo,
-    versione:             p.versione,
-    checklistCompletata:  Array.from(_checkedItems),
-    totalItemsChecklist:  _checklistItems.length,
-    esito:                'OK',
-    annullata:            false
-  };
-  p.preparazioni.push(prep);
-  p.storico.push({
-    tipo:'preparazione', data:todayISO(), medico:'-',
-    azione:'Preparazione dosette N° ' + (prep.numeroDosette || '?') + ' · ' + prep.periodo,
-    doc:'checklist', op:firmaRiempimento.sigla, visto:firmaControllo.sigla
-  });
+  var prep = buildPreparazionePayload(p, 'OK');
+  if (!prep) { showToast('Preparazione non valida', 'error'); return; }
+  upsertPreparazione(p, prep);
+  registraStoricoPreparazione(p, prep, firmaRiempimento ? firmaRiempimento.sigla : '-', firmaControllo ? firmaControllo.sigla : '-', true);
   sincronizzaPaziente(p); // sync Firestore
   showToast('Preparazione salvata!', 'success');
   _checkedFissi = new Set(); _checkedAuto = new Set(); _checkedItems = new Set();
+  prepCorrente = null;
+  firmaRiempimento = null;
+  firmaControllo = null;
   showScreen('screen-paziente');
   document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 1); });
   switchTab('preparazione', null);
@@ -3140,10 +3154,10 @@ loadData().then(function(){
     <option value="">— Seleziona operatore —</option>
   </select>
   <div style="display:flex;gap:16px;justify-content:center;margin-bottom:20px" id="lock-pin-dots">
-    <div class="pin-dot" id="ld0"></div>
-    <div class="pin-dot" id="ld1"></div>
-    <div class="pin-dot" id="ld2"></div>
-    <div class="pin-dot" id="ld3"></div>
+    <div class="pin-dot" id="lk0"></div>
+    <div class="pin-dot" id="lk1"></div>
+    <div class="pin-dot" id="lk2"></div>
+    <div class="pin-dot" id="lk3"></div>
   </div>
   <div class="login-pin-grid">
     <button class="login-pin-btn" onclick="lockPinDigit('1')">1</button>
