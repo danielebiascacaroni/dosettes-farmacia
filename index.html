@@ -1258,8 +1258,8 @@ if (FIREBASE_ENABLED) {
   try {
     firebase.initializeApp(firebaseConfig);
     firestoreDB = firebase.firestore();
-    // Fase 1.5: auth anonima per Security Rules "request.auth != null"
-    firebase.auth().signInAnonymously().catch(function(e){ console.warn('Auth anonima fallita:', e.code); });
+    // Autenticazione con account dedicato per Security Rules
+    firebase.auth().signInWithEmailAndPassword('farmacia.ascona@gmail.com','7917139Dbc').catch(function(e){ console.warn('Auth fallita:', e.code); });
   } catch(e) {
     console.error('Errore init Firebase:', e.message);
     FIREBASE_ENABLED = false;
