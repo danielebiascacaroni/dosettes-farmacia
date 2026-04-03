@@ -1383,13 +1383,11 @@ function loadData() {
     DB.pazienti = loaded;
   }).catch(function(){ DB.pazienti = _demoPazienti; });
 
-  var _demoOperatori = OPERATORI.slice();
   var loadOperatori = firestoreDB.collection('operatori').get().then(function(snapshot) {
     var loaded = [];
     snapshot.forEach(function(doc){ loaded.push(doc.data()); });
-    // Stesso principio: operatori sempre da Firestore.
     OPERATORI = loaded;
-  }).catch(function(){ OPERATORI = _demoOperatori; });
+  }).catch(function(){ OPERATORI = []; });
 
   var loadStorico = firestoreDB.collection('terapie_storiche').get().then(function(snapshot) {
     TERAPIE_STORICHE = {};
@@ -1455,13 +1453,7 @@ async function migraDB() {
 // DATI OPERATORI
 // ════════════════════════════════════════════
 function _gapMigra(p){if(!p.stato)p.stato='attivo';if(p.giornoInizio===undefined)p.giornoInizio='';if(p.numeroDosette===undefined)p.numeroDosette='';if(p.curatele===undefined)p.curatele=false;if(!p.telefono)p.telefono='';if(!p.indirizzo)p.indirizzo='';var t=p.terapia||{};(t.fissi||[]).forEach(function(f){if(f.sospeso===undefined)f.sospeso=false;});(t.autogestiti||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(t.riserva||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(p.preparazioni||[]).forEach(function(pr){if(!pr.note)pr.note='';if(!pr.opPrep)pr.opPrep='';});(t.storico||[]).forEach(function(hs){if(!hs.link)hs.link='';});return p;}
-let OPERATORI = [
-  { sigla:'VA', nome:'Valentina',   ruolo:'Farmacista', pin:'1111' },
-  { sigla:'GL', nome:'Giulia Luna', ruolo:'Farmacista', pin:'2222' },
-  { sigla:'MA', nome:'Martina',     ruolo:'Assistente', pin:'3333' },
-  { sigla:'VE', nome:'Veronica',    ruolo:'Assistente', pin:'4444' },
-  { sigla:'FR', nome:'Francesca',   ruolo:'Assistente', pin:'5555' },
-];
+let OPERATORI = [];
 
 // Snapshot terapie storiche (chiave: pazienteId-vN)
 let TERAPIE_STORICHE = {};
@@ -1590,6 +1582,35 @@ let _loginPinBuffer   = '';
 let _sessionTimer     = null;
 const SESSION_TIMEOUT  = 5  * 60 * 1000; // 5 minuti
 const LOCK_TIMEOUT     = 30 * 60 * 1000; // 30 minuti di lock -> logout
+
+// ===== RATE LIMITING LOGIN =====
+const PIN_MAX_TENTATIVI  = 5;
+const PIN_BLOCCO_MS      = 5 * 60 * 1000; // 5 minuti
+const PIN_RL_KEY         = 'fa_pin_rl';   // localStorage key
+
+function _rlGet(){ try{ return JSON.parse(localStorage.getItem(PIN_RL_KEY)||'{}'); }catch(e){ return {}; } }
+function _rlSave(o){ localStorage.setItem(PIN_RL_KEY, JSON.stringify(o)); }
+
+function _rlBloccato(){
+  var o=_rlGet();
+  if(!o.bloccatoAl) return false;
+  if(Date.now() < o.bloccatoAl) return true;
+  localStorage.removeItem(PIN_RL_KEY); return false;
+}
+
+function _rlRimanente(){
+  var o=_rlGet();
+  return o.bloccatoAl ? Math.ceil((o.bloccatoAl - Date.now()) / 1000) : 0;
+}
+
+function _rlRegistraErrore(){
+  var o=_rlGet();
+  o.tentativi = (o.tentativi||0) + 1;
+  if(o.tentativi >= PIN_MAX_TENTATIVI){ o.bloccatoAl = Date.now() + PIN_BLOCCO_MS; o.tentativi=0; }
+  _rlSave(o);
+}
+
+function _rlReset(){ localStorage.removeItem(PIN_RL_KEY); }
 let _sessionState  = 'active'; // active | locked
 let _lockTimer     = null;
 let _lockPinBuf    = '';
@@ -2229,6 +2250,15 @@ function updateLoginDots() {
 async function loginPinConfirm() {
   var sigla = document.getElementById('login-operatore').value;
   var errEl = document.getElementById('login-error');
+
+  // Rate limiting
+  if (_rlBloccato()) {
+    var sec = _rlRimanente();
+    var min = Math.floor(sec/60), s = sec%60;
+    errEl.textContent = 'Troppi tentativi errati. Riprova tra ' + min + ':' + (s<10?'0':'')+s;
+    _loginPinBuffer = ''; updateLoginDots(); return;
+  }
+
   if (!sigla) { errEl.textContent = 'Seleziona un operatore'; _loginPinBuffer = ''; updateLoginDots(); return; }
   if (_loginPinBuffer.length < 4) { errEl.textContent = 'Inserisci 4 cifre'; return; }
 
@@ -2244,11 +2274,20 @@ async function loginPinConfirm() {
   }
 
   if (!pinOk) {
-    errEl.textContent = 'PIN errato — riprova';
+    _rlRegistraErrore();
+    var o=_rlGet();
+    if(o.bloccatoAl){
+      errEl.textContent = 'Troppi tentativi errati. Accesso bloccato per 5 minuti.';
+    } else {
+      var rimasti = PIN_MAX_TENTATIVI - (o.tentativi||0);
+      errEl.textContent = 'PIN errato — ' + rimasti + ' tentativ' + (rimasti===1?'o':'i') + ' rimanent' + (rimasti===1?'e':'i');
+    }
     _loginPinBuffer = '';
     updateLoginDots();
     return;
   }
+
+  _rlReset();
 
   // Login OK
   currentOperatore = { sigla: op.sigla, nome: op.nome, ruolo: op.ruolo };
