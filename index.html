@@ -682,14 +682,15 @@ body {
 .section-title { font-size: 18px; font-weight: 700; }
 
 /* ── LOGO HEADER ── */
-.logo-header {
-  background: var(--accent-dark);
-  padding: 28px 24px 20px;
-  color: white;
-}
-.logo-name { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
-.logo-sub { font-size: 13px; opacity: 0.7; margin-top: 2px; }
-.logo-date { font-size: 12px; opacity: 0.6; margin-top: 8px; font-family: var(--mono); }
+.logo-header { background: var(--accent-dark); padding: 18px 24px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 18px; color: white; }
+.logo-header-img { height: 48px; width: auto; filter: brightness(0) invert(1); flex-shrink: 0; object-fit: contain; }
+.logo-header-divider { width: 1px; height: 38px; background: rgba(255,255,255,0.25); flex-shrink: 0; }
+.logo-header-text { text-align: center; }
+.logo-name { font-size: 18px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.2; }
+.logo-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.logo-date-block { text-align: center; }
+.logo-date { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.75); text-transform: capitalize; line-height: 1.3; }
+.logo-time { font-size: 24px; font-weight: 300; letter-spacing: 1px; font-variant-numeric: tabular-nums; line-height: 1.1; }
 
 /* ── RESPONSIVE ── */
 @media (min-width: 640px) {
@@ -840,9 +841,17 @@ body {
 
 <div id="screen-home" class="screen">
   <div class="logo-header">
-    <div class="logo-name">💊 Dosettes V2</div>
-    <div class="logo-sub">viale Monte Verità 3 · CH-6612 Ascona</div>
-    <div class="logo-date" id="header-date"></div>
+    <img class="logo-header-img" src="logo.png" alt="Farmacia Ascona">
+    <div class="logo-header-divider"></div>
+    <div class="logo-header-text">
+      <div class="logo-name">Dosettes V2</div>
+      <div class="logo-sub">Farmacia Ascona</div>
+    </div>
+    <div class="logo-header-divider"></div>
+    <div class="logo-date-block">
+      <div class="logo-date" id="header-date">—</div>
+      <div class="logo-time" id="header-time">—</div>
+    </div>
   </div>
   <div class="content">
     <div class="search-wrap">
@@ -3233,8 +3242,21 @@ function stampaTerapia() {
 // ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
-document.getElementById('header-date').textContent =
-  new Date().toLocaleDateString('it-CH', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+(function(){
+  var giorni=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  var mesi=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  function pad(n){return n<10?'0'+n:String(n);}
+  function tick(){
+    var now=new Date();
+    var elD=document.getElementById('header-date');
+    var elT=document.getElementById('header-time');
+    if(elD) elD.textContent=giorni[now.getDay()]+', '+now.getDate()+' '+mesi[now.getMonth()];
+    if(elT) elT.textContent=pad(now.getHours())+':'+pad(now.getMinutes());
+  }
+  tick();
+  var ms=(60-new Date().getSeconds())*1000;
+  setTimeout(function(){tick();setInterval(tick,60000);},ms);
+})();
 
 // Se Firebase abilitato: carica da Firestore, poi renderHome
 // Se non abilitato: renderHome diretto con dati hardcoded (modalità demo)
