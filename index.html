@@ -1286,8 +1286,8 @@ if (FIREBASE_ENABLED) {
   try {
     firebase.initializeApp(firebaseConfig);
     firestoreDB = firebase.firestore();
-    // Autenticazione con account dedicato per Security Rules
-    firebase.auth().signInWithEmailAndPassword('farmacia.ascona@gmail.com','7917139Dbc').catch(function(e){ console.warn('Auth fallita:', e.code); });
+    // Autenticazione anonima Firebase (bootstrap) — l'operatore si autentica con il suo account dopo il PIN
+    firebase.auth().signInAnonymously().catch(function(e){ console.warn('Auth anonima fallita:', e.code); });
   } catch(e) {
     console.error('Errore init Firebase:', e.message);
     FIREBASE_ENABLED = false;
@@ -2297,6 +2297,21 @@ async function loginPinConfirm() {
   }
 
   _rlReset();
+
+  // Re-autenticazione Firebase con account personale dell'operatore
+  if (op.emailFirebase) {
+    try {
+      var pinHash = await sha256(_loginPinBuffer);
+      await firebase.auth().signOut();
+      await firebase.auth().signInWithEmailAndPassword(op.emailFirebase, pinHash);
+    } catch(e) {
+      console.warn('Re-auth operatore fallita:', e.code);
+      await firebase.auth().signInAnonymously().catch(function(){});
+      errEl.textContent = 'Errore autenticazione Firebase — contatta l\'admin';
+      _loginPinBuffer = ''; updateLoginDots();
+      return;
+    }
+  }
 
   // Login OK
   currentOperatore = { sigla: op.sigla, nome: op.nome, ruolo: op.ruolo };
