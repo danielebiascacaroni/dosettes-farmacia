@@ -868,6 +868,7 @@ body {
       </select>
       <div style="display:flex;gap:8px;align-items:center">
         <span id="count-badge" class="badge badge-gray">0</span>
+        <button class="btn btn-sm btn-ghost" onclick="showScreen('screen-storico');renderStoricoGlobale()" style="font-size:13px">📋 Storico</button>
         <button class="btn btn-sm btn-ghost" onclick="showScreen('screen-operatori')" style="font-size:13px">⚙️ Operatori</button>
       
         <span class="header-user" id="header-user-badge" onclick="logout()" title="Tocca per uscire">&mdash;</span></div>
@@ -875,6 +876,24 @@ body {
     <div id="patient-list"></div>
   </div>
   <button class="fab" onclick="showScreen('screen-nuovo-paziente')">+</button>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN STORICO DOSETTES
+════════════════════════════════════════════ -->
+<div id="screen-storico" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <span class="header-title">Storico Dosettes</span>
+    <span id="storico-count" class="badge badge-gray" style="margin-left:auto;margin-right:8px">0</span>
+  </div>
+  <div class="content">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" id="storico-search" placeholder="Cerca paziente, operatore, periodo..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="filterStorico(this.value)">
+    </div>
+    <div id="storico-list"></div>
+  </div>
 </div>
 
 <!-- ════════════════════════════════════════════
@@ -1683,6 +1702,106 @@ function renderHome() {
   }).join('');
 }
 document.getElementById('search-input').addEventListener('input', renderHome);
+
+// ════════════════════════════════════════════
+// STORICO DOSETTES
+// ════════════════════════════════════════════
+var _storicoData = [];
+
+function normalizzaStorico() {
+  var result = [];
+  DB.pazienti.forEach(function(p) {
+    var pazNome = ((p.cognome||'') + ' ' + (p.nome||'')).trim();
+    (p.storico || []).forEach(function(s, idx) {
+      var dataRaw = s.data || '';
+      var opNome = s.op ? ((OPERATORI.find(function(o){return o.sigla===s.op;})||{nome:s.op}).nome) : '—';
+      var vistoNome = s.visto && s.visto !== '-' ? ((OPERATORI.find(function(o){return o.sigla===s.visto;})||{nome:s.visto}).nome) : '';
+      result.push({
+        key:        p.id + '::' + idx,
+        patientId:  p.id,
+        patientName:pazNome,
+        tipo:       s.tipo || 'terapia',
+        data:       dataRaw,
+        azione:     s.azione || '—',
+        opSigla:    s.op || '',
+        opNome:     opNome,
+        vistoNome:  vistoNome,
+        ndosette:   s.ndosette || '',
+        versione:   s.versione != null ? s.versione : null,
+        medico:     s.medico && s.medico !== '-' ? s.medico : '',
+        link:       s.link || ''
+      });
+    });
+  });
+  result.sort(function(a, b) {
+    function sv(raw) {
+      if (!raw) return 0;
+      if (typeof raw === 'object' && raw.seconds) return raw.seconds * 1000;
+      var n = Date.parse(raw); return isNaN(n) ? 0 : n;
+    }
+    return sv(b.data) - sv(a.data);
+  });
+  return result;
+}
+
+function renderStoricoGlobale() {
+  _storicoData = normalizzaStorico();
+  document.getElementById('storico-count').textContent = _storicoData.length;
+  document.getElementById('storico-search').value = '';
+  renderStoricoList(_storicoData);
+}
+
+function filterStorico(q) {
+  q = (q || '').toLowerCase().trim();
+  var filtered = q ? _storicoData.filter(function(d) {
+    return [d.patientName, d.azione, d.opNome, d.vistoNome, d.tipo, d.medico].join(' ').toLowerCase().indexOf(q) !== -1;
+  }) : _storicoData;
+  renderStoricoList(filtered);
+}
+
+function renderStoricoList(data) {
+  var list = document.getElementById('storico-list');
+  if (!data.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Nessun evento trovato</p></div>';
+    return;
+  }
+  list.innerHTML = data.map(function(d) {
+    var tipoIcon = d.tipo === 'terapia' ? '💊' : d.tipo === 'consegna' ? '📦' : d.tipo === 'visita' ? '🩺' : '📋';
+    var dataStr = d.data ? (typeof d.data === 'object' && d.data.seconds ? new Date(d.data.seconds*1000).toLocaleDateString('it-CH') : String(d.data).substring(0,10)) : '—';
+    var metaParts = [dataStr, d.opNome && d.opNome !== '—' ? d.opNome : ''].filter(Boolean);
+    if (d.vistoNome) metaParts.push('✓ ' + d.vistoNome);
+    if (d.ndosette) metaParts.push(d.ndosette + ' dos.');
+    return '<div class="patient-item" onclick="apriDettaglioStorico(' + JSON.stringify(d.key) + ')">'
+      + '<div class="patient-info">'
+      + '<div class="patient-name">' + tipoIcon + ' ' + escHtml(d.patientName) + '</div>'
+      + '<div class="patient-meta">' + escHtml(metaParts.join(' · ')) + '</div>'
+      + '<div class="patient-badges"><span class="badge badge-gray">' + escHtml(d.azione) + '</span>'
+      + (d.versione != null ? ' <span class="badge badge-info">v' + escHtml(String(d.versione)) + '</span>' : '')
+      + '</div>'
+      + '</div><span class="chevron">›</span></div>';
+  }).join('');
+}
+
+function apriDettaglioStorico(key) {
+  var d = _storicoData.find(function(x){ return x.key === key; });
+  if (!d) return;
+  var dataStr = d.data ? (typeof d.data === 'object' && d.data.seconds ? new Date(d.data.seconds*1000).toLocaleString('it-CH') : String(d.data)) : '—';
+  var body = '<div style="font-size:13px">'
+    + '<div style="display:grid;grid-template-columns:130px 1fr;gap:5px 12px;margin-bottom:16px">'
+    + '<b style="color:#888">Tipo</b><span>' + escHtml(d.tipo) + '</span>'
+    + '<b style="color:#888">Data</b><span>' + escHtml(dataStr) + '</span>'
+    + '<b style="color:#888">Azione</b><span>' + escHtml(d.azione) + '</span>'
+    + '<b style="color:#888">Operatore</b><span>' + escHtml(d.opNome || d.opSigla || '—') + '</span>'
+    + (d.vistoNome ? '<b style="color:#888">Visto da</b><span>' + escHtml(d.vistoNome) + '</span>' : '')
+    + (d.ndosette ? '<b style="color:#888">N. dosette</b><span>' + escHtml(String(d.ndosette)) + '</span>' : '')
+    + (d.versione != null ? '<b style="color:#888">Versione</b><span>v' + escHtml(String(d.versione)) + '</span>' : '')
+    + (d.medico ? '<b style="color:#888">Medico</b><span>' + escHtml(d.medico) + '</span>' : '')
+    + (d.link ? '<b style="color:#888">Link</b><span><a href="' + escHtml(d.link) + '" target="_blank" style="color:#0066cc">Apri</a></span>' : '')
+    + '</div>'
+    + '</div>';
+  mostraModal('<div style="padding:4px"><div style="font-size:16px;font-weight:700;margin-bottom:16px">📋 '+escHtml(d.patientName)+'</div>'+body
+    +'<div style="text-align:right;margin-top:20px"><button class="btn btn-primary" onclick="chiudiModal()">Chiudi</button></div></div>');
+}
 
 // ════════════════════════════════════════════
 // PAZIENTE
