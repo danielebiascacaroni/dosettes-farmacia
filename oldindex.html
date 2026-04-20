@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Dosettes – Farmacia Ascona</title>
+<title>Dosettes v8 V2 – Farmacia Ascona</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- ════════════════════════════════════════════
      FIREBASE SDK (Compat v10) — CDN ufficiale Google
@@ -11,6 +11,7 @@
 ════════════════════════════════════════════ -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 :root {
   --bg: #F4F2EE;
@@ -681,14 +682,15 @@ body {
 .section-title { font-size: 18px; font-weight: 700; }
 
 /* ── LOGO HEADER ── */
-.logo-header {
-  background: var(--accent-dark);
-  padding: 28px 24px 20px;
-  color: white;
-}
-.logo-name { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
-.logo-sub { font-size: 13px; opacity: 0.7; margin-top: 2px; }
-.logo-date { font-size: 12px; opacity: 0.6; margin-top: 8px; font-family: var(--mono); }
+.logo-header { background: var(--accent-dark); padding: 18px 24px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 18px; color: white; }
+.logo-header-img { height: 48px; width: auto; filter: brightness(0) invert(1); flex-shrink: 0; object-fit: contain; }
+.logo-header-divider { width: 1px; height: 38px; background: rgba(255,255,255,0.25); flex-shrink: 0; }
+.logo-header-text { text-align: center; }
+.logo-name { font-size: 18px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.2; }
+.logo-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.logo-date-block { text-align: center; }
+.logo-date { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.75); text-transform: capitalize; line-height: 1.3; }
+.logo-time { font-size: 24px; font-weight: 300; letter-spacing: 1px; font-variant-numeric: tabular-nums; line-height: 1.1; }
 
 /* ── RESPONSIVE ── */
 @media (min-width: 640px) {
@@ -774,6 +776,25 @@ body {
 </style>
 </head>
 <body>
+<!-- ════ DEVICE AUTH OVERLAY ════ -->
+<div id="device-auth-overlay" style="display:flex;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.88);flex-direction:column;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:32px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+    <div style="font-size:42px;margin-bottom:12px;">🔒</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:#111;">Dispositivo non riconosciuto</div>
+    <div style="font-size:14px;color:#666;margin-bottom:24px;">Inserisci il codice amministratore per autorizzare questo dispositivo.</div>
+    <div id="da-step1">
+      <input id="da-code" type="password" placeholder="Codice amministratore" style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:8px;">
+      <div id="da-error" style="color:#e53935;font-size:13px;margin-bottom:8px;min-height:18px;"></div>
+      <button onclick="daVerificaCodice()" style="width:100%;padding:12px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Verifica codice</button>
+    </div>
+    <div id="da-step2" style="display:none;">
+      <div style="font-size:14px;color:#333;margin-bottom:16px;">✅ Codice corretto. Dai un nome a questo dispositivo:</div>
+      <input id="da-nome" type="text" placeholder="Es: iPad farmacia, PC Daniele…" style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:8px;">
+      <div id="da-error2" style="color:#e53935;font-size:13px;margin-bottom:8px;min-height:18px;"></div>
+      <button onclick="daRegistraDispositivo()" style="width:100%;padding:12px;background:#2e7d32;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Autorizza dispositivo</button>
+    </div>
+  </div>
+</div>
 <div id="app">
 
 <!-- ════════════════════════════════════════════
@@ -820,9 +841,17 @@ body {
 
 <div id="screen-home" class="screen">
   <div class="logo-header">
-    <div class="logo-name">💊 Dosettes</div>
-    <div class="logo-sub">viale Monte Verità 3 · CH-6612 Ascona</div>
-    <div class="logo-date" id="header-date"></div>
+    <img class="logo-header-img" src="logo.png" alt="Farmacia Ascona">
+    <div class="logo-header-divider"></div>
+    <div class="logo-header-text">
+      <div class="logo-name">Dosettes V2</div>
+      <div class="logo-sub">Farmacia Ascona</div>
+    </div>
+    <div class="logo-header-divider"></div>
+    <div class="logo-date-block">
+      <div class="logo-date" id="header-date">—</div>
+      <div class="logo-time" id="header-time">—</div>
+    </div>
   </div>
   <div class="content">
     <div class="search-wrap">
@@ -897,6 +926,10 @@ body {
             <option value="3">3</option>
             <option value="4">4</option>
             <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
           </select>
         </div>
         <div class="form-group">
@@ -955,6 +988,7 @@ body {
       <span class="section-title">Farmaci fissi</span>
       <span id="check-progress" class="badge badge-info">0/0</span>
     </div>
+    <div id="checklist-totali"></div>
     <div id="checklist-fissi"></div>
 
     <div id="checklist-autogestiti-section" style="display:none">
@@ -1252,11 +1286,65 @@ if (FIREBASE_ENABLED) {
   try {
     firebase.initializeApp(firebaseConfig);
     firestoreDB = firebase.firestore();
+    // Autenticazione anonima Firebase (bootstrap) — l'operatore si autentica con il suo account dopo il PIN
+    firebase.auth().signInAnonymously().catch(function(e){ console.warn('Auth anonima fallita:', e.code); });
   } catch(e) {
     console.error('Errore init Firebase:', e.message);
     FIREBASE_ENABLED = false;
   }
 }
+
+// ════════════════════════════════════════════
+// DEVICE AUTH — Registro dispositivi autorizzati
+// ════════════════════════════════════════════
+(function(){
+  var DEVICE_KEY = 'fa_device_id';
+  function getOrCreateDeviceId(){
+    var id = localStorage.getItem(DEVICE_KEY);
+    if(!id){ id='dev_'+Date.now().toString(36)+Math.random().toString(36).substr(2,9); localStorage.setItem(DEVICE_KEY,id); }
+    return id;
+  }
+  async function sha256(s){
+    var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+  }
+  window._daDeviceId = getOrCreateDeviceId();
+  firebase.auth().onAuthStateChanged(async function(user){
+    if(!user) return;
+    var db=firebase.firestore();
+    try{
+      var doc=await db.collection('dispositivi').doc(window._daDeviceId).get();
+      if(doc.exists && doc.data().autorizzato===true){
+        db.collection('dispositivi').doc(window._daDeviceId).update({ultimoAccesso:new Date()});
+        document.getElementById('device-auth-overlay').style.display='none';
+        return;
+      }
+    }catch(e){console.warn('Device check:',e);}
+  });
+  window.daVerificaCodice=async function(){
+    var code=(document.getElementById('da-code').value||'').trim();
+    if(!code) return;
+    var hash=await sha256(code);
+    if(hash!=='81a7ad73c35f4ef750d4471a0be8482de72b0d8327b4337573d712970131b8c4'){ document.getElementById('da-error').textContent='Codice non valido.'; return; }
+    document.getElementById('da-step1').style.display='none';
+    document.getElementById('da-step2').style.display='block';
+  };
+  window.daRegistraDispositivo=async function(){
+    var nome=(document.getElementById('da-nome').value||'').trim();
+    if(!nome){ document.getElementById('da-error2').textContent='Inserisci un nome.'; return; }
+    try{
+      var db=firebase.firestore();
+      await db.collection('dispositivi').doc(window._daDeviceId).set({nome:nome,autorizzato:true,primoAccesso:new Date(),ultimoAccesso:new Date(),userAgent:navigator.userAgent});
+      document.getElementById('device-auth-overlay').style.display='none';
+    }catch(e){ document.getElementById('da-error2').textContent='Errore di salvataggio. Riprova.'; }
+  };
+  // Invio con tasto Enter
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Enter') return;
+    if(document.getElementById('da-step2').style.display==='block') daRegistraDispositivo();
+    else daVerificaCodice();
+  });
+})();
 
 // ════════════════════════════════════════════
 // UTILITY — SHA-256 per PIN (Web Crypto API nativa)
@@ -1304,13 +1392,11 @@ function loadData() {
     DB.pazienti = loaded;
   }).catch(function(){ DB.pazienti = _demoPazienti; });
 
-  var _demoOperatori = OPERATORI.slice();
   var loadOperatori = firestoreDB.collection('operatori').get().then(function(snapshot) {
     var loaded = [];
     snapshot.forEach(function(doc){ loaded.push(doc.data()); });
-    // Stesso principio: operatori sempre da Firestore.
     OPERATORI = loaded;
-  }).catch(function(){ OPERATORI = _demoOperatori; });
+  }).catch(function(){ OPERATORI = []; });
 
   var loadStorico = firestoreDB.collection('terapie_storiche').get().then(function(snapshot) {
     TERAPIE_STORICHE = {};
@@ -1376,13 +1462,7 @@ async function migraDB() {
 // DATI OPERATORI
 // ════════════════════════════════════════════
 function _gapMigra(p){if(!p.stato)p.stato='attivo';if(p.giornoInizio===undefined)p.giornoInizio='';if(p.numeroDosette===undefined)p.numeroDosette='';if(p.curatele===undefined)p.curatele=false;if(!p.telefono)p.telefono='';if(!p.indirizzo)p.indirizzo='';var t=p.terapia||{};(t.fissi||[]).forEach(function(f){if(f.sospeso===undefined)f.sospeso=false;});(t.autogestiti||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(t.riserva||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(p.preparazioni||[]).forEach(function(pr){if(!pr.note)pr.note='';if(!pr.opPrep)pr.opPrep='';});(t.storico||[]).forEach(function(hs){if(!hs.link)hs.link='';});return p;}
-let OPERATORI = [
-  { sigla:'VA', nome:'Valentina',   ruolo:'Farmacista', pin:'1111' },
-  { sigla:'GL', nome:'Giulia Luna', ruolo:'Farmacista', pin:'2222' },
-  { sigla:'MA', nome:'Martina',     ruolo:'Assistente', pin:'3333' },
-  { sigla:'VE', nome:'Veronica',    ruolo:'Assistente', pin:'4444' },
-  { sigla:'FR', nome:'Francesca',   ruolo:'Assistente', pin:'5555' },
-];
+let OPERATORI = [];
 
 // Snapshot terapie storiche (chiave: pazienteId-vN)
 let TERAPIE_STORICHE = {};
@@ -1509,7 +1589,40 @@ let _checkedItems     = new Set();
 let currentOperatore  = null;  // {sigla, nome, ruolo}
 let _loginPinBuffer   = '';
 let _sessionTimer     = null;
-const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minuti
+const SESSION_TIMEOUT  = 5  * 60 * 1000; // 5 minuti
+const LOCK_TIMEOUT     = 30 * 60 * 1000; // 30 minuti di lock -> logout
+
+// ===== RATE LIMITING LOGIN =====
+const PIN_MAX_TENTATIVI  = 5;
+const PIN_BLOCCO_MS      = 5 * 60 * 1000; // 5 minuti
+const PIN_RL_KEY         = 'fa_pin_rl';   // localStorage key
+
+function _rlGet(){ try{ return JSON.parse(localStorage.getItem(PIN_RL_KEY)||'{}'); }catch(e){ return {}; } }
+function _rlSave(o){ localStorage.setItem(PIN_RL_KEY, JSON.stringify(o)); }
+
+function _rlBloccato(){
+  var o=_rlGet();
+  if(!o.bloccatoAl) return false;
+  if(Date.now() < o.bloccatoAl) return true;
+  localStorage.removeItem(PIN_RL_KEY); return false;
+}
+
+function _rlRimanente(){
+  var o=_rlGet();
+  return o.bloccatoAl ? Math.ceil((o.bloccatoAl - Date.now()) / 1000) : 0;
+}
+
+function _rlRegistraErrore(){
+  var o=_rlGet();
+  o.tentativi = (o.tentativi||0) + 1;
+  if(o.tentativi >= PIN_MAX_TENTATIVI){ o.bloccatoAl = Date.now() + PIN_BLOCCO_MS; o.tentativi=0; }
+  _rlSave(o);
+}
+
+function _rlReset(){ localStorage.removeItem(PIN_RL_KEY); }
+let _sessionState  = 'active'; // active | locked
+let _lockTimer     = null;
+let _lockPinBuf    = '';
 
 
 // ════════════════════════════════════════════
@@ -2146,6 +2259,15 @@ function updateLoginDots() {
 async function loginPinConfirm() {
   var sigla = document.getElementById('login-operatore').value;
   var errEl = document.getElementById('login-error');
+
+  // Rate limiting
+  if (_rlBloccato()) {
+    var sec = _rlRimanente();
+    var min = Math.floor(sec/60), s = sec%60;
+    errEl.textContent = 'Troppi tentativi errati. Riprova tra ' + min + ':' + (s<10?'0':'')+s;
+    _loginPinBuffer = ''; updateLoginDots(); return;
+  }
+
   if (!sigla) { errEl.textContent = 'Seleziona un operatore'; _loginPinBuffer = ''; updateLoginDots(); return; }
   if (_loginPinBuffer.length < 4) { errEl.textContent = 'Inserisci 4 cifre'; return; }
 
@@ -2161,10 +2283,34 @@ async function loginPinConfirm() {
   }
 
   if (!pinOk) {
-    errEl.textContent = 'PIN errato — riprova';
+    _rlRegistraErrore();
+    var o=_rlGet();
+    if(o.bloccatoAl){
+      errEl.textContent = 'Troppi tentativi errati. Accesso bloccato per 5 minuti.';
+    } else {
+      var rimasti = PIN_MAX_TENTATIVI - (o.tentativi||0);
+      errEl.textContent = 'PIN errato — ' + rimasti + ' tentativ' + (rimasti===1?'o':'i') + ' rimanent' + (rimasti===1?'e':'i');
+    }
     _loginPinBuffer = '';
     updateLoginDots();
     return;
+  }
+
+  _rlReset();
+
+  // Re-autenticazione Firebase con account personale dell'operatore
+  if (op.emailFirebase) {
+    try {
+      var pinHash = await sha256(_loginPinBuffer);
+      await firebase.auth().signOut();
+      await firebase.auth().signInWithEmailAndPassword(op.emailFirebase, pinHash);
+    } catch(e) {
+      console.warn('Re-auth operatore fallita:', e.code);
+      await firebase.auth().signInAnonymously().catch(function(){});
+      errEl.textContent = 'Errore autenticazione Firebase — contatta l\'admin';
+      _loginPinBuffer = ''; updateLoginDots();
+      return;
+    }
   }
 
   // Login OK
@@ -2181,8 +2327,13 @@ async function loginPinConfirm() {
 
 function logout() {
   currentOperatore = null;
+  _sessionState = 'active';
   clearTimeout(_sessionTimer);
+  clearTimeout(_lockTimer);
   prepCorrente = null;
+  firmaRiempimento = null; firmaControllo = null;
+  var overlay = document.getElementById('lock-overlay');
+  if (overlay) overlay.style.display = 'none';
   var badge = document.getElementById('header-user-badge');
   if (badge) badge.textContent = '—';
   initLoginScreen();
@@ -2195,23 +2346,177 @@ function applicaRuolo() {
   if (btnMod) btnMod.style.display = (currentOperatore.ruolo === 'Farmacista') ? '' : 'none';
 }
 
-// ===== SESSION LOCK: 5 min di inattivita =====
+// ===== SESSION LOCK: 5 min inattività -> LOCK, 30 min -> LOGOUT =====
 function startSessionTimer() {
   clearTimeout(_sessionTimer);
   _sessionTimer = setTimeout(function() {
-    showToast('Sessione scaduta — rieffettua il login', 'error');
-    logout();
+    // Auto-salva preparazione in corso se c'è almeno la firma di riempimento
+    if (firmaRiempimento && prepCorrente) {
+      salvaPreparazioneAuto();
+    }
+    lockSession();
   }, SESSION_TIMEOUT);
 }
 
 function resetSessionTimer() {
-  if (!currentOperatore) return;
+  if (!currentOperatore || _sessionState === 'locked') return;
   startSessionTimer();
 }
 
 document.addEventListener('touchstart', resetSessionTimer, { passive: true });
 document.addEventListener('click', resetSessionTimer);
 document.addEventListener('keydown', resetSessionTimer);
+
+function buildPreparazionePayload(p, esito) {
+  if (!prepCorrente || !firmaRiempimento) return null;
+  return {
+    id:                   prepCorrente.id,
+    data:                 prepCorrente.dataCreazione || now(),
+    dataUltimoAggiornamento: now(),
+    periodo:              formatDate(prepCorrente.dal) + ' – ' + formatDate(prepCorrente.al),
+    numeroDosette:        prepCorrente.numeroDosette || '',
+    firmaRiempimento:     firmaRiempimento,
+    firmaControllo:       firmaControllo || null,
+    versione:             p.versione,
+    checklistCompletata:  Array.from(_checkedItems || new Set()),
+    totalItemsChecklist:  (_checklistItems || []).length,
+    esito:                esito,
+    annullata:            false,
+    inCorso:              esito !== 'OK'
+  };
+}
+
+function upsertPreparazione(p, prep) {
+  if (!prep) return;
+  var idx = (p.preparazioni || []).findIndex(function(pr){ return pr.id === prep.id; });
+  if (idx >= 0) {
+    p.preparazioni[idx] = Object.assign({}, p.preparazioni[idx], prep);
+  } else {
+    p.preparazioni.push(prep);
+  }
+}
+
+function registraStoricoPreparazione(p, prep, opSigla, vistoSigla, isUpdate) {
+  var azione = 'Preparazione dosette N° ' + (prep.numeroDosette || '?') + ' · ' + prep.periodo;
+  if (prep.esito === 'AUTO-SALVATO') azione += ' [auto-salvato al blocco]';
+  var entry = {
+    tipo:'preparazione', data:todayISO(), medico:'-',
+    azione: azione,
+    doc:'checklist', op: opSigla || '-', visto: vistoSigla || '-'
+  };
+  if (!p.storico) p.storico = [];
+  var idx = p.storico.findIndex(function(s){ return s.tipo === 'preparazione' && s.prepId === prep.id; });
+  entry.prepId = prep.id;
+  if (idx >= 0) {
+    p.storico[idx] = Object.assign({}, p.storico[idx], entry);
+  } else {
+    p.storico.push(entry);
+  }
+}
+
+
+// ════════════════════════════════════════════
+// AUTO-SALVATAGGIO al timeout
+// ════════════════════════════════════════════
+function salvaPreparazioneAuto() {
+  if (!prepCorrente || !firmaRiempimento) return;
+  var p = getCP();
+  if (!p) return;
+  var prep = buildPreparazionePayload(p, firmaControllo ? 'OK' : 'AUTO-SALVATO');
+  if (!prep) return;
+  upsertPreparazione(p, prep);
+  registraStoricoPreparazione(p, prep, firmaRiempimento.sigla, firmaControllo ? firmaControllo.sigla : '-', true);
+  sincronizzaPaziente(p);
+  showToast('Preparazione auto-salvata', 'success');
+}
+
+// ════════════════════════════════════════════
+// LOCK / UNLOCK sessione
+// ════════════════════════════════════════════
+function lockSession() {
+  _sessionState = 'locked';
+  _lockPinBuf = '';
+  var overlay = document.getElementById('lock-overlay');
+  if (!overlay) return;
+  // Popola select operatori nel lock
+  var sel = document.getElementById('lock-operatore');
+  sel.innerHTML = '<option value="">— Seleziona operatore —</option>'
+    + OPERATORI.filter(function(o){ return o.attivo !== false; })
+               .map(function(o){ return '<option value="' + o.sigla + '">' + o.nome + '</option>'; })
+               .join('');
+  // Pre-seleziona l'operatore corrente
+  if (currentOperatore) sel.value = currentOperatore.sigla;
+  updateLockPinDots();
+  overlay.style.display = 'flex';
+  document.getElementById('lock-error').textContent = '';
+  document.getElementById('lock-subtitle').textContent =
+    currentOperatore ? ('Bloccato come ' + currentOperatore.nome + ' — reinserisci PIN') : 'Inserisci PIN per sbloccare';
+  // Avvia timer logout definitivo a 30 minuti
+  clearTimeout(_lockTimer);
+  _lockTimer = setTimeout(function() {
+    showToast('Sessione scaduta dopo 30 minuti di blocco', 'error');
+    logout();
+  }, LOCK_TIMEOUT);
+}
+
+function unlockSession(op) {
+  clearTimeout(_lockTimer);
+  _sessionState = 'active';
+  currentOperatore = { sigla: op.sigla, nome: op.nome, ruolo: op.ruolo };
+  document.getElementById('lock-overlay').style.display = 'none';
+  var badge = document.getElementById('header-user-badge');
+  if (badge) badge.textContent = op.nome;
+  applicaRuolo();
+  startSessionTimer();
+  showToast('Bentornat' + (op.nome.slice(-1).toLowerCase() === 'a' ? 'a' : 'o') + ' ' + op.nome, 'success');
+}
+
+function lockPinDigit(d) {
+  if (_lockPinBuf.length >= 4) return;
+  _lockPinBuf += d;
+  updateLockPinDots();
+  if (_lockPinBuf.length === 4) lockPinConfirm();
+}
+
+function lockPinClear() {
+  _lockPinBuf = _lockPinBuf.slice(0, -1);
+  updateLockPinDots();
+  document.getElementById('lock-error').textContent = '';
+}
+
+function updateLockPinDots() {
+  for (var i = 0; i < 4; i++) {
+    var d = document.getElementById('lk' + i);
+    if (d) d.classList.toggle('filled', i < _lockPinBuf.length);
+  }
+}
+
+async function lockPinConfirm() {
+  var sigla = document.getElementById('lock-operatore').value;
+  var errEl = document.getElementById('lock-error');
+  if (!sigla) { errEl.textContent = 'Seleziona operatore'; _lockPinBuf = ''; updateLockPinDots(); return; }
+  if (_lockPinBuf.length < 4) { errEl.textContent = 'PIN a 4 cifre'; return; }
+  var op = OPERATORI.find(function(o){ return o.sigla === sigla; });
+  if (!op) { errEl.textContent = 'Operatore non trovato'; _lockPinBuf = ''; updateLockPinDots(); return; }
+  var ok = false;
+  if (op.pinHash) {
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(_lockPinBuf));
+    var hash = Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    ok = (hash === op.pinHash);
+  } else if (op.pin) {
+    ok = (_lockPinBuf === String(op.pin));
+  }
+  _lockPinBuf = ''; updateLockPinDots();
+  if (ok) {
+    unlockSession(op);
+  } else {
+    errEl.textContent = 'PIN errato';
+    for (var i = 0; i < 4; i++) {
+      var dd = document.getElementById('lk' + i);
+      if (dd) { dd.classList.add('error'); setTimeout(function(x){ return function(){ x.classList.remove('error'); }; }(dd), 600); }
+    }
+  }
+}
 
 // ════════════════════════════════════════════
 // CHECKLIST
@@ -2233,7 +2538,7 @@ function avviaChecklist() {
   var al  = document.getElementById('prep-al').value;
   if (!dal || !al) { showToast('Inserisci il periodo coperto', 'error'); return; }
   var numDosette = (document.getElementById('prep-numDosette') || {value: ''}).value;
-  prepCorrente = {dal: dal, al: al, numeroDosette: numDosette};
+  prepCorrente = {id:'PREP' + Date.now(), dataCreazione: now(), dal: dal, al: al, numeroDosette: numDosette};
   var p = getCP();
   firmaRiempimento = null; firmaControllo = null;
   _checkedFissi = new Set(); _checkedAuto = new Set();
@@ -2266,6 +2571,32 @@ function renderChecklist(p) {
       }
     });
   });
+
+  // ── Totali compresse per fascia oraria ──
+  var totM=0, totMez=0, totS=0, totN=0;
+  (t.fissi||[]).forEach(function(f){
+    if (f.sospeso) return;
+    totM   += parseFloat(f.mat)||0;
+    totMez += parseFloat(f.mez)||0;
+    totS   += parseFloat(f.ser)||0;
+    totN   += parseFloat(f.not)||0;
+  });
+  var _fmt = function(v){ return v>0 ? (v%1===0?String(v):v.toFixed(2)) : '—'; };
+  var totEl = document.getElementById('checklist-totali');
+  if (totEl) totEl.innerHTML =
+    '<div style="display:flex;gap:6px;background:var(--accent-light);border:1.5px solid var(--accent);'
+    +'border-radius:10px;padding:10px 12px;margin-bottom:12px;align-items:center">'
+    +'<div style="font-size:10px;font-weight:700;color:var(--accent-dark);letter-spacing:.5px;'
+    +'white-space:nowrap;margin-right:4px">TOT. CPR</div>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text2)">Mat</div>'
+    +'<div style="font-size:17px;font-weight:800;color:var(--accent-dark)">'+_fmt(totM)+'</div></div>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text2)">Mez</div>'
+    +'<div style="font-size:17px;font-weight:800;color:var(--accent-dark)">'+_fmt(totMez)+'</div></div>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text2)">Sera</div>'
+    +'<div style="font-size:17px;font-weight:800;color:var(--accent-dark)">'+_fmt(totS)+'</div></div>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text2)">Not</div>'
+    +'<div style="font-size:17px;font-weight:800;color:var(--accent-dark)">'+_fmt(totN)+'</div></div>'
+    +'</div>';
 
   // Render raggruppato per momento
   var html = '';
@@ -2473,28 +2804,16 @@ function chiudiPin() {
 // ════════════════════════════════════════════
 function completaPreparazione() {
   var p = getCP();
-  var prep = {
-    id:                   'PREP' + Date.now(),
-    data:                 now(),
-    periodo:              formatDate(prepCorrente.dal) + ' – ' + formatDate(prepCorrente.al),
-    numeroDosette:        prepCorrente.numeroDosette || '',
-    firmaRiempimento:     firmaRiempimento,
-    firmaControllo:       firmaControllo,
-    versione:             p.versione,
-    checklistCompletata:  Array.from(_checkedItems),
-    totalItemsChecklist:  _checklistItems.length,
-    esito:                'OK',
-    annullata:            false
-  };
-  p.preparazioni.push(prep);
-  p.storico.push({
-    tipo:'preparazione', data:todayISO(), medico:'-',
-    azione:'Preparazione dosette N° ' + (prep.numeroDosette || '?') + ' · ' + prep.periodo,
-    doc:'checklist', op:firmaRiempimento.sigla, visto:firmaControllo.sigla
-  });
+  var prep = buildPreparazionePayload(p, 'OK');
+  if (!prep) { showToast('Preparazione non valida', 'error'); return; }
+  upsertPreparazione(p, prep);
+  registraStoricoPreparazione(p, prep, firmaRiempimento ? firmaRiempimento.sigla : '-', firmaControllo ? firmaControllo.sigla : '-', true);
   sincronizzaPaziente(p); // sync Firestore
   showToast('Preparazione salvata!', 'success');
   _checkedFissi = new Set(); _checkedAuto = new Set(); _checkedItems = new Set();
+  prepCorrente = null;
+  firmaRiempimento = null;
+  firmaControllo = null;
   showScreen('screen-paziente');
   document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 1); });
   switchTab('preparazione', null);
@@ -2938,8 +3257,21 @@ function stampaTerapia() {
 // ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
-document.getElementById('header-date').textContent =
-  new Date().toLocaleDateString('it-CH', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+(function(){
+  var giorni=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  var mesi=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  function pad(n){return n<10?'0'+n:String(n);}
+  function tick(){
+    var now=new Date();
+    var elD=document.getElementById('header-date');
+    var elT=document.getElementById('header-time');
+    if(elD) elD.textContent=giorni[now.getDay()]+', '+now.getDate()+' '+mesi[now.getMonth()];
+    if(elT) elT.textContent=pad(now.getHours())+':'+pad(now.getMinutes());
+  }
+  tick();
+  var ms=(60-new Date().getSeconds())*1000;
+  setTimeout(function(){tick();setInterval(tick,60000);},ms);
+})();
 
 // Se Firebase abilitato: carica da Firestore, poi renderHome
 // Se non abilitato: renderHome diretto con dati hardcoded (modalità demo)
@@ -2963,5 +3295,38 @@ loadData().then(function(){
   .header, .fab, .tabs, .pin-overlay { display: none !important; }
 }
 </style>
+
+<!-- ══ LOCK OVERLAY ══ -->
+<div id="lock-overlay" style="display:none;position:fixed;inset:0;z-index:9998;background:var(--accent-dark);flex-direction:column;align-items:center;justify-content:center;padding:32px 24px">
+  <div style="font-size:48px;margin-bottom:8px">&#128274;</div>
+  <div style="font-size:22px;font-weight:700;color:white;margin-bottom:4px">Sessione bloccata</div>
+  <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:24px" id="lock-subtitle">Reinserisci il PIN per continuare</div>
+  <select class="form-select" id="lock-operatore" style="max-width:280px;width:100%;text-align:center;background:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.6);color:var(--accent-dark);font-weight:600;margin-bottom:16px">
+    <option value="">— Seleziona operatore —</option>
+  </select>
+  <div style="display:flex;gap:16px;justify-content:center;margin-bottom:20px" id="lock-pin-dots">
+    <div class="pin-dot" id="lk0"></div>
+    <div class="pin-dot" id="lk1"></div>
+    <div class="pin-dot" id="lk2"></div>
+    <div class="pin-dot" id="lk3"></div>
+  </div>
+  <div class="login-pin-grid">
+    <button class="login-pin-btn" onclick="lockPinDigit('1')">1</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('2')">2</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('3')">3</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('4')">4</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('5')">5</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('6')">6</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('7')">7</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('8')">8</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('9')">9</button>
+    <button class="login-pin-btn action" onclick="lockPinClear()">&#9003;</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('0')">0</button>
+    <button class="login-pin-btn action" id="lock-confirm-btn" onclick="lockPinConfirm()" style="background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.7)">OK</button>
+  </div>
+  <div style="color:#ffb3b3;font-size:13px;font-weight:600;margin-top:12px;min-height:20px" id="lock-error"></div>
+  <button class="btn btn-ghost" style="color:rgba(255,255,255,0.6);margin-top:24px;font-size:13px" onclick="logout()">Esci definitivamente</button>
+</div>
+
 </body>
 </html>
