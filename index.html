@@ -2302,15 +2302,16 @@ async function loginPinConfirm() {
     }
   }
 
-  // Login OK
+  // Login OK — ricarica dati con permessi operatore
   currentOperatore = { sigla: op.sigla, nome: op.nome, ruolo: op.ruolo };
   _loginPinBuffer = '';
   updateLoginDots();
   errEl.textContent = '';
   var badge = document.getElementById('header-user-badge');
-  if (badge) badge.textContent = op.nome + ' (' + op.ruolo + ')' ;
+  if (badge) badge.textContent = op.nome + ' (' + op.ruolo + ')';
   applicaRuolo();
   startSessionTimer();
+  await loadData();
   showScreen('screen-home');
 }
 
