@@ -1031,7 +1031,7 @@ body {
 ════════════════════════════════════════════ -->
 <div id="screen-modifica-terapia" class="screen">
   <div class="header">
-    <button class="header-back" onclick="showScreen('screen-paziente')">←</button>
+    <button class="header-back" onclick="confermaEsciModificaTerapia()">←</button>
     <div class="header-title">Modifica terapia</div>
   </div>
   <div class="content">
@@ -1264,6 +1264,13 @@ body {
 ════════════════════════════════════════════ -->
 <script>
 // ════════════════════════════════════════════
+// UTILITY — definita per prima perché usata ovunque
+// ════════════════════════════════════════════
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ════════════════════════════════════════════
 // FIREBASE — CONFIG E INIZIALIZZAZIONE
 // ════════════════════════════════════════════
 //
@@ -1282,68 +1289,33 @@ var firebaseConfig = {
 };
 
 var firestoreDB = null;
-if (FIREBASE_ENABLED) {
+(function(){
   try {
     firebase.initializeApp(firebaseConfig);
     firestoreDB = firebase.firestore();
-    // Autenticazione anonima Firebase (bootstrap) — l'operatore si autentica con il suo account dopo il PIN
-    firebase.auth().signInAnonymously().catch(function(e){ console.warn('Auth anonima fallita:', e.code); });
+    // ── DEVICE AUTH ──────────────────────────
+    (function(){
+      var DEVICE_KEY='fa_device_id';
+      function getOrCreateDeviceId(){var id=localStorage.getItem(DEVICE_KEY);if(!id){id='dev_'+Date.now().toString(36)+Math.random().toString(36).substr(2,9);localStorage.setItem(DEVICE_KEY,id);}return id;}
+      async function sha256(s){var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
+      window._daDeviceId=getOrCreateDeviceId();
+      firebase.auth().onAuthStateChanged(async function(user){
+        if(!user) return;
+        var db=firebase.firestore();
+        try{var doc=await db.collection('dispositivi').doc(window._daDeviceId).get();if(doc.exists&&doc.data().autorizzato===true){db.collection('dispositivi').doc(window._daDeviceId).update({ultimoAccesso:new Date()});document.getElementById('device-auth-overlay').style.display='none';return;}}catch(e){console.warn('Device check:',e);}
+      });
+      window.daVerificaCodice=async function(){var code=(document.getElementById('da-code').value||'').trim();if(!code)return;var hash=await sha256(code);if(hash!=='81a7ad73c35f4ef750d4471a0be8482de72b0d8327b4337573d712970131b8c4'){document.getElementById('da-error').textContent='Codice non valido.';return;}document.getElementById('da-step1').style.display='none';document.getElementById('da-step2').style.display='block';};
+      window.daRegistraDispositivo=async function(){var nome=(document.getElementById('da-nome').value||'').trim();if(!nome){document.getElementById('da-error2').textContent='Inserisci un nome.';return;}try{var db=firebase.firestore();await db.collection('dispositivi').doc(window._daDeviceId).set({nome:nome,autorizzato:true,primoAccesso:new Date(),ultimoAccesso:new Date(),userAgent:navigator.userAgent});document.getElementById('device-auth-overlay').style.display='none';}catch(e){document.getElementById('da-error2').textContent='Errore di salvataggio. Riprova.';}};
+      document.addEventListener('keydown',function(e){if(e.key!=='Enter')return;if(document.getElementById('da-step2').style.display==='block')daRegistraDispositivo();else daVerificaCodice();});
+    })();
+    firebase.auth().signInAnonymously()
+      .catch(function(e){ console.warn('Firebase auth anonima fallita:', e.code); })
+      .then(function(){ loadData().then(function(){ initLoginScreen(); }).catch(function(){ initLoginScreen(); }); });
   } catch(e) {
     console.error('Errore init Firebase:', e.message);
     FIREBASE_ENABLED = false;
+    initLoginScreen();
   }
-}
-
-// ════════════════════════════════════════════
-// DEVICE AUTH — Registro dispositivi autorizzati
-// ════════════════════════════════════════════
-(function(){
-  var DEVICE_KEY = 'fa_device_id';
-  function getOrCreateDeviceId(){
-    var id = localStorage.getItem(DEVICE_KEY);
-    if(!id){ id='dev_'+Date.now().toString(36)+Math.random().toString(36).substr(2,9); localStorage.setItem(DEVICE_KEY,id); }
-    return id;
-  }
-  async function sha256(s){
-    var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
-    return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
-  }
-  window._daDeviceId = getOrCreateDeviceId();
-  firebase.auth().onAuthStateChanged(async function(user){
-    if(!user) return;
-    var db=firebase.firestore();
-    try{
-      var doc=await db.collection('dispositivi').doc(window._daDeviceId).get();
-      if(doc.exists && doc.data().autorizzato===true){
-        db.collection('dispositivi').doc(window._daDeviceId).update({ultimoAccesso:new Date()});
-        document.getElementById('device-auth-overlay').style.display='none';
-        return;
-      }
-    }catch(e){console.warn('Device check:',e);}
-  });
-  window.daVerificaCodice=async function(){
-    var code=(document.getElementById('da-code').value||'').trim();
-    if(!code) return;
-    var hash=await sha256(code);
-    if(hash!=='81a7ad73c35f4ef750d4471a0be8482de72b0d8327b4337573d712970131b8c4'){ document.getElementById('da-error').textContent='Codice non valido.'; return; }
-    document.getElementById('da-step1').style.display='none';
-    document.getElementById('da-step2').style.display='block';
-  };
-  window.daRegistraDispositivo=async function(){
-    var nome=(document.getElementById('da-nome').value||'').trim();
-    if(!nome){ document.getElementById('da-error2').textContent='Inserisci un nome.'; return; }
-    try{
-      var db=firebase.firestore();
-      await db.collection('dispositivi').doc(window._daDeviceId).set({nome:nome,autorizzato:true,primoAccesso:new Date(),ultimoAccesso:new Date(),userAgent:navigator.userAgent});
-      document.getElementById('device-auth-overlay').style.display='none';
-    }catch(e){ document.getElementById('da-error2').textContent='Errore di salvataggio. Riprova.'; }
-  };
-  // Invio con tasto Enter
-  document.addEventListener('keydown',function(e){
-    if(e.key!=='Enter') return;
-    if(document.getElementById('da-step2').style.display==='block') daRegistraDispositivo();
-    else daVerificaCodice();
-  });
 })();
 
 // ════════════════════════════════════════════
@@ -1361,15 +1333,23 @@ async function sha256(message) {
 // FIREBASE HELPERS — sync in background (fire-and-forget)
 // ════════════════════════════════════════════
 function sincronizzaPaziente(p) {
-  if (!FIREBASE_ENABLED || !firestoreDB) return;
-  firestoreDB.collection('pazienti').doc(p.id).set(p)
-    .catch(function(e){ console.error('Sync paziente fallita:', e.code); });
+  if (!FIREBASE_ENABLED || !firestoreDB) return Promise.resolve();
+  return firestoreDB.collection('pazienti').doc(p.id).set(p)
+    .catch(function(e){
+      console.error('Sync paziente fallita:', e.code);
+      showToast('Errore salvataggio — riprova o ricarica la pagina', 'error');
+      throw e;
+    });
 }
 
 function sincronizzaStorico(chiave, snapshot) {
-  if (!FIREBASE_ENABLED || !firestoreDB) return;
-  firestoreDB.collection('terapie_storiche').doc(chiave).set(snapshot)
-    .catch(function(e){ console.error('Sync storico fallita:', e.code); });
+  if (!FIREBASE_ENABLED || !firestoreDB) return Promise.resolve();
+  return firestoreDB.collection('terapie_storiche').doc(chiave).set(snapshot)
+    .catch(function(e){
+      console.error('Sync storico fallita:', e.code);
+      showToast('Errore salvataggio storico — riprova o ricarica la pagina', 'error');
+      throw e;
+    });
 }
 
 // ════════════════════════════════════════════
@@ -1401,7 +1381,7 @@ function loadData() {
   var loadStorico = firestoreDB.collection('terapie_storiche').get().then(function(snapshot) {
     TERAPIE_STORICHE = {};
     snapshot.forEach(function(doc){ TERAPIE_STORICHE[doc.id] = doc.data(); });
-  });
+  }).catch(function(e){ console.warn('Storico non caricato (accesso anonimo):', e.code); });
 
   return Promise.all([loadPazienti, loadOperatori, loadStorico])
     .catch(function(e){
@@ -1434,12 +1414,13 @@ async function migraDB() {
   }
 
   // 3. Operatori — PIN hashato con SHA-256 (mai in chiaro su Firestore)
+  // PIN placeholder — devono essere sostituiti con i PIN reali prima di eseguire la migrazione
   var operatoriDaMigrare = [
-    { sigla:'VA', nome:'Valentina',   ruolo:'Farmacista', pin:'1111' },
-    { sigla:'GL', nome:'Giulia Luna', ruolo:'Farmacista', pin:'2222' },
-    { sigla:'MA', nome:'Martina',     ruolo:'Assistente', pin:'3333' },
-    { sigla:'VE', nome:'Veronica',    ruolo:'Assistente', pin:'4444' },
-    { sigla:'FR', nome:'Francesca',   ruolo:'Assistente', pin:'5555' },
+    { sigla:'VA', nome:'Valentina',   ruolo:'Farmacista', pin:'INSERISCI_PIN' },
+    { sigla:'GL', nome:'Giulia Luna', ruolo:'Farmacista', pin:'INSERISCI_PIN' },
+    { sigla:'MA', nome:'Martina',     ruolo:'Assistente', pin:'INSERISCI_PIN' },
+    { sigla:'VE', nome:'Veronica',    ruolo:'Assistente', pin:'INSERISCI_PIN' },
+    { sigla:'FR', nome:'Francesca',   ruolo:'Assistente', pin:'INSERISCI_PIN' },
   ];
   for (var k = 0; k < operatoriDaMigrare.length; k++) {
     var op = operatoriDaMigrare[k];
@@ -1682,21 +1663,22 @@ function renderHome() {
   }
   list.innerHTML = fil.map(function(p){
     var ha  = p.allergie && p.allergie.trim();
-    var ini = p.cognome[0] + (p.nome[0] || '');
+    var ini = escHtml(p.cognome[0] + (p.nome[0] || ''));
     var badges = '';
-    if (ha)  badges += '<span class="badge badge-danger">⚠️ ' + p.allergie + '</span>';
-    badges += '<span class="badge badge-gray">' + p.giorno + '</span>';
-    badges += '<span class="badge badge-info">v' + p.versione + '</span>';
+    if (ha)  badges += '<span class="badge badge-danger">⚠️ ' + escHtml(p.allergie) + '</span>';
+    badges += '<span class="badge badge-gray">' + escHtml(p.giorno) + '</span>';
+    badges += '<span class="badge badge-info">v' + escHtml(String(p.versione)) + '</span>';
     if (p.note && p.note.toLowerCase().indexOf('diabetico') !== -1)
       badges += '<span class="badge badge-warning">Diabetico</span>';
     if (p.note && p.note.toLowerCase().indexOf('dialisi') !== -1)
       badges += '<span class="badge badge-info">Dialisi</span>';
-    return '<div class="patient-item" onclick="openPaziente(\'' + p.id + '\')">'
+    var statoSafe = escHtml(p.stato || 'attivo');
+    return '<div class="patient-item" data-pid="' + escHtml(p.id) + '" onclick="openPaziente(this.getAttribute(\'data-pid\'))">'
       + '<div class="patient-avatar' + (ha ? ' has-allergy' : '') + '">' + ini + '</div>'
       + '<div class="patient-info">'
-      + '<div class="patient-name">' + p.cognome + ' ' + p.nome + '</div>'
-      + '<div class="patient-meta">' + formatDate(p.ddn) + ' · ' + formatAge(p.ddn) + ' · ' + p.medico + '</div>'
-      + '<div class="patient-badges">' + ((p.stato&&p.stato!=='attivo') ? '<span class="badge-stato-'+(p.stato||'attivo')+'">'+(p.stato||'attivo').toUpperCase()+'</span>' : '') + badges + '</div>'
+      + '<div class="patient-name">' + escHtml(p.cognome) + ' ' + escHtml(p.nome) + '</div>'
+      + '<div class="patient-meta">' + formatDate(p.ddn) + ' · ' + formatAge(p.ddn) + ' · ' + escHtml(p.medico) + '</div>'
+      + '<div class="patient-badges">' + ((p.stato&&p.stato!=='attivo') ? '<span class="badge-stato-' + statoSafe + '">' + statoSafe.toUpperCase() + '</span>' : '') + badges + '</div>'
       + '</div><span class="chevron">›</span></div>';
   }).join('');
 }
@@ -1721,7 +1703,7 @@ function renderAllergieBar(elId, p) {
   var el = document.getElementById(elId);
   if (!el) return;
   if (p.allergie && p.allergie.trim()) {
-    el.innerHTML = '<div class="allergie-banner"><span style="font-size:20px">⚠️</span>ALLERGIE: ' + p.allergie + '</div>';
+    el.innerHTML = '<div class="allergie-banner"><span style="font-size:20px">⚠️</span>ALLERGIE: ' + escHtml(p.allergie) + '</div>';
   } else {
     el.innerHTML = '<div class="no-allergie-banner">✅ Nessuna allergia documentata</div>';
   }
@@ -1756,24 +1738,25 @@ function buildTerapiaTable(t) {
     + '<th style="text-align:left">Note</th></tr>';
   h += '<tr><td colspan="6" class="categoria-header">▸ FISSI</td></tr>';
   (t.fissi || []).forEach(function(f){
-    h += '<tr><td>' + (f.sospeso ? '<s class="farmaco-sospeso">' + f.nome + '</s> <span style="font-size:10px;color:#ff9800;font-weight:600">[SOSP]</span>' : f.nome) + '</td>'
+    var nomeF = escHtml(f.nome);
+    h += '<tr><td>' + (f.sospeso ? '<s class="farmaco-sospeso">' + nomeF + '</s> <span style="font-size:10px;color:#ff9800;font-weight:600">[SOSP]</span>' : nomeF) + '</td>'
       + '<td>' + dose(f.mat) + '</td><td>' + dose(f.mez) + '</td>'
       + '<td>' + dose(f.ser) + '</td><td>' + dose(f.not) + '</td>'
-      + '<td style="font-size:12px;color:var(--text2)">' + (f.note || '') + '</td></tr>';
+      + '<td style="font-size:12px;color:var(--text2)">' + escHtml(f.note || '') + '</td></tr>';
   });
   if ((t.autogestiti || []).length) {
     h += '<tr><td colspan="6" class="categoria-header">▸ AUTOGESTITI</td></tr>';
     t.autogestiti.forEach(function(f){
-      h += '<tr><td>' + f.nome + '</td>'
-        + '<td colspan="4" style="text-align:left;font-size:13px;color:var(--text2)">' + f.istruzioni + '</td>'
+      h += '<tr><td>' + escHtml(f.nome) + '</td>'
+        + '<td colspan="4" style="text-align:left;font-size:13px;color:var(--text2)">' + escHtml(f.istruzioni || '') + '</td>'
         + '<td></td></tr>';
     });
   }
   if ((t.riserva || []).length) {
     h += '<tr><td colspan="6" class="categoria-header">▸ RISERVA</td></tr>';
     t.riserva.forEach(function(f){
-      h += '<tr><td>' + f.nome + '</td>'
-        + '<td colspan="4" style="text-align:left;font-size:13px;color:var(--text2)">' + f.istruzioni + '</td>'
+      h += '<tr><td>' + escHtml(f.nome) + '</td>'
+        + '<td colspan="4" style="text-align:left;font-size:13px;color:var(--text2)">' + escHtml(f.istruzioni || '') + '</td>'
         + '<td></td></tr>';
     });
   }
@@ -1794,17 +1777,17 @@ function renderPreparazione(p) {
     var statoClass = canceled ? 'badge-canceled' : (pr.esito === 'OK' ? 'badge-success' : 'badge-danger');
     var statoLabel = canceled ? 'ANNULLATA' : pr.esito;
     var periodoHtml = canceled
-      ? '<span style="text-decoration:line-through">' + pr.periodo + '</span>'
-      : pr.periodo;
+      ? '<span style="text-decoration:line-through">' + escHtml(pr.periodo || '') + '</span>'
+      : escHtml(pr.periodo || '');
 
     var consegnaHtml = '';
     if (pr.consegna) {
       consegnaHtml = '<div class="prep-consegna">'
         + '<div class="prep-consegna-label">📦 Consegnata</div>'
-        + '<div style="font-size:13px"><b>' + pr.consegna.destinatario + '</b> · ' + pr.consegna.data + (pr.consegna.numeroDosette ? ' · <b>N° ' + pr.consegna.numeroDosette + '</b>' : '') + '</div>'
-        + '<div style="font-size:12px;color:var(--text2)">Da: ' + pr.consegna.operatore
-        + (pr.consegna.modalita ? ' · ' + pr.consegna.modalita : '')
-        + (pr.consegna.note ? ' · ' + pr.consegna.note : '') + '</div>'
+        + '<div style="font-size:13px"><b>' + escHtml(pr.consegna.destinatario || '') + '</b> · ' + escHtml(pr.consegna.data || '') + (pr.consegna.numeroDosette ? ' · <b>N° ' + escHtml(String(pr.consegna.numeroDosette)) + '</b>' : '') + '</div>'
+        + '<div style="font-size:12px;color:var(--text2)">Da: ' + escHtml(pr.consegna.operatore || '')
+        + (pr.consegna.modalita ? ' · ' + escHtml(pr.consegna.modalita) : '')
+        + (pr.consegna.note ? ' · ' + escHtml(pr.consegna.note) : '') + '</div>'
         + '</div>';
     }
 
@@ -1812,38 +1795,38 @@ function renderPreparazione(p) {
     if (canceled) {
       var riativaBtn = (currentOperatore && currentOperatore.ruolo === 'Farmacista')
         ? '<button class="btn btn-sm btn-outline" style="flex:1;margin-top:8px" onclick="riattivaPrepara(\''
-          + pr.id + '\')">&uarr; Riattiva preparazione</button>'
+          + escHtml(pr.id) + '\')">&uarr; Riattiva preparazione</button>'
         : '';
       actionsHtml = '<div style="font-size:12px;color:var(--canceled);margin-top:6px;font-style:italic">'
-        + 'Annullata da: ' + (pr.annullataDA || '-') + ' il ' + (pr.annullataIL || '-')
-        + (pr.motivoAnnullo ? ' &middot; Motivo: ' + pr.motivoAnnullo : '') + '</div>'
+        + 'Annullata da: ' + escHtml(pr.annullataDA || '-') + ' il ' + escHtml(pr.annullataIL || '-')
+        + (pr.motivoAnnullo ? ' &middot; Motivo: ' + escHtml(pr.motivoAnnullo) : '') + '</div>'
         + (riativaBtn ? '<div class="prep-actions">' + riativaBtn + '</div>' : '');
     } else {
       var btns = '';
       if (!pr.consegna) {
         btns += '<button class="btn btn-sm btn-outline" style="flex:1" onclick="showConsegnaModal(\''
-          + pr.id + '\')">📦 Registra consegna</button>';
+          + escHtml(pr.id) + '\')">📦 Registra consegna</button>';
       }
       btns += '<button class="btn btn-sm btn-ghost" style="flex:1;color:var(--danger)" onclick="mostraAnnullaModal(\''
-        + pr.id + '\')">🗑 Annulla</button>';
+        + escHtml(pr.id) + '\')">🗑 Annulla</button>';
       actionsHtml = '<div class="prep-actions">' + btns + '</div>';
     }
 
     return '<div class="prep-card' + (canceled ? ' canceled' : '') + '">'
       + '<div class="prep-header">'
       + '<div><div class="prep-periodo">' + periodoHtml + '</div>'
-      + '<div class="prep-data">' + pr.data + ' · v' + (pr.versione || '') + (pr.numeroDosette ? ' · <b style="color:var(--accent)">N° ' + pr.numeroDosette + '</b>' : '') + '</div></div>'
-      + '<span class="badge ' + statoClass + '">' + statoLabel + '</span>'
+      + '<div class="prep-data">' + escHtml(pr.data || '') + ' · v' + escHtml(String(pr.versione || '')) + (pr.numeroDosette ? ' · <b style="color:var(--accent)">N° ' + escHtml(String(pr.numeroDosette)) + '</b>' : '') + '</div></div>'
+      + '<span class="badge ' + statoClass + '">' + escHtml(statoLabel) + '</span>'
       + '</div>'
       + '<div class="prep-firme">'
-      + '<span>✍️ <b>' + (pr.firmaRiempimento ? pr.firmaRiempimento.nome : '-') + '</b>'
+      + '<span>✍️ <b>' + escHtml(pr.firmaRiempimento ? pr.firmaRiempimento.nome : '-') + '</b>'
       + ' <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">'
-      + (pr.firmaRiempimento ? pr.firmaRiempimento.ts : '') + '</span></span>'
-      + '<span>🔍 <b>' + (pr.firmaControllo ? pr.firmaControllo.nome : '-') + '</b>'
+      + escHtml(pr.firmaRiempimento ? pr.firmaRiempimento.ts : '') + '</span></span>'
+      + '<span>🔍 <b>' + escHtml(pr.firmaControllo ? pr.firmaControllo.nome : '-') + '</b>'
       + ' <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">'
-      + (pr.firmaControllo ? pr.firmaControllo.ts : '') + '</span></span>'
+      + escHtml(pr.firmaControllo ? pr.firmaControllo.ts : '') + '</span></span>'
       + '</div>'
-      + (pr.note ? '<div class="prep-note-box">📝 ' + pr.note + '</div>' : '') + (pr.opPrep ? '<div style="font-size:11px;color:#888;padding:0 0 4px 2px">Preparato da: <b>' + pr.opPrep + '</b></div>' : '') + consegnaHtml + actionsHtml
+      + (pr.note ? '<div class="prep-note-box">📝 ' + escHtml(pr.note) + '</div>' : '') + (pr.opPrep ? '<div style="font-size:11px;color:#888;padding:0 0 4px 2px">Preparato da: <b>' + escHtml(pr.opPrep) + '</b></div>' : '') + consegnaHtml + actionsHtml
       + '</div>';
   }).join('');
 }
@@ -2044,18 +2027,25 @@ function confermAnnullo(firma) {
 // ANAGRAFICA
 // ════════════════════════════════════════════
 function renderAnagrafica(p) {
-  var html = '<div class="info-row"><span class="info-key">Cognome e nome</span><span class="info-val">' + p.cognome + ' ' + p.nome + '</span></div>'
+  var statoColor = p.stato==='sospeso'?'#ff9800':p.stato==='dimesso'?'#9e9e9e':'var(--primary,#2979ff)';
+  var html = '<div class="info-row"><span class="info-key">Cognome e nome</span><span class="info-val">' + escHtml(p.cognome) + ' ' + escHtml(p.nome) + '</span></div>'
     + '<div class="info-row"><span class="info-key">Data di nascita</span><span class="info-val">' + formatDate(p.ddn) + ' (' + formatAge(p.ddn) + ')</span></div>'
-    + '<div class="info-row"><span class="info-key">Medico</span><span class="info-val">' + p.medico + '</span></div>'
-    + '<div class="info-row"><span class="info-key">Giorno ritiro</span><span class="info-val">' + p.giorno + '</span></div>'
-    + '<div class="info-row"><span class="info-key">Consegna</span><span class="info-val">' + p.consegna + '</span></div>' + '<div class="info-row"><span class="info-key">Telefono</span><span class="info-val">' + (p.telefono||'—') + '</span></div>' + '<div class="info-row"><span class="info-key">Indirizzo</span><span class="info-val">' + (p.indirizzo||'—') + '</span></div>' + '<div class="info-row"><span class="info-key">Inizio terapia</span><span class="info-val">' + (p.giornoInizio || '—') + '</span></div>' + '<div class="info-row"><span class="info-key">Durata standard</span><span class="info-val">' + (p.durata ? p.durata + ' giorni' : '—') + '</span></div>' + '<div class="info-row"><span class="info-key">Curatela</span><span class="info-val">' + (p.curatele ? 'Sì' : 'No') + '</span></div>' + '<div class="info-row"><span class="info-key">Stato</span><span class="info-val"><span style="font-weight:600;text-transform:uppercase;color:' + (p.stato==='sospeso'?'#ff9800':p.stato==='dimesso'?'#9e9e9e':'var(--primary,#2979ff)') + '">' + (p.stato||'attivo') + '</span></span></div>';
+    + '<div class="info-row"><span class="info-key">Medico</span><span class="info-val">' + escHtml(p.medico) + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Giorno ritiro</span><span class="info-val">' + escHtml(p.giorno) + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Consegna</span><span class="info-val">' + escHtml(p.consegna) + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Telefono</span><span class="info-val">' + escHtml(p.telefono||'—') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Indirizzo</span><span class="info-val">' + escHtml(p.indirizzo||'—') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Inizio terapia</span><span class="info-val">' + escHtml(p.giornoInizio||'—') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Durata standard</span><span class="info-val">' + (p.durata ? escHtml(String(p.durata)) + ' giorni' : '—') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Curatela</span><span class="info-val">' + (p.curatele ? 'Sì' : 'No') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Stato</span><span class="info-val"><span style="font-weight:600;text-transform:uppercase;color:' + statoColor + '">' + escHtml(p.stato||'attivo') + '</span></span></div>';
   if (p.allergie) {
     html += '<div class="info-row" style="background:var(--danger-light);margin:0 -18px;padding:10px 18px;border-radius:8px">'
       + '<span class="info-key" style="color:var(--danger)">⚠️ Allergie</span>'
-      + '<span class="info-val" style="color:var(--danger);font-weight:700">' + p.allergie + '</span></div>';
+      + '<span class="info-val" style="color:var(--danger);font-weight:700">' + escHtml(p.allergie) + '</span></div>';
   }
   if (p.note) {
-    html += '<div style="margin-top:12px;padding:12px;background:var(--warning-light);border-radius:8px;font-size:14px;color:var(--warning)">📝 ' + p.note + '</div>';
+    html += '<div style="margin-top:12px;padding:12px;background:var(--warning-light);border-radius:8px;font-size:14px;color:var(--warning)">📝 ' + escHtml(p.note) + '</div>';
   }
   document.getElementById('anagrafica-content').innerHTML = html;
   // Mostra pulsante solo a Farmacista
@@ -2129,16 +2119,13 @@ function showModificaAnagrafica() {
   mostraModal(html);
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
 function salvaAnagrafica() {
   var cognome = (document.getElementById('ea-cognome')||{value:''}).value.trim();
   var nome    = (document.getElementById('ea-nome')||{value:''}).value.trim();
   var ddn     = (document.getElementById('ea-ddn')||{value:''}).value;
   if (!cognome || !nome || !ddn) { showToast('Cognome, nome e data di nascita sono obbligatori', 'error'); return; }
   var p = getCP();
+  if (!p) { showToast('Errore: paziente non trovato', 'error'); return; }
   p.cognome      = cognome;
   p.nome         = nome;
   p.ddn          = ddn;
@@ -2159,14 +2146,16 @@ function salvaAnagrafica() {
     azione:'Modifica anagrafica', doc:'-',
     op: currentOperatore ? currentOperatore.sigla : '?', visto:'-'
   });
-  sincronizzaPaziente(p);
-  chiudiModal();
-  // Aggiorna header paziente e tab info
-  document.getElementById('pz-header-nome').textContent = p.cognome + ' ' + p.nome;
-  document.getElementById('pz-header-meta').textContent = formatDate(p.ddn) + ' · ' + formatAge(p.ddn);
-  renderAllergieBar('allergie-bar', p);
-  renderAnagrafica(p);
-  showToast('Anagrafica aggiornata', 'success');
+  sincronizzaPaziente(p).then(function(){
+    chiudiModal();
+    document.getElementById('pz-header-nome').textContent = p.cognome + ' ' + p.nome;
+    document.getElementById('pz-header-meta').textContent = formatDate(p.ddn) + ' · ' + formatAge(p.ddn);
+    renderAllergieBar('allergie-bar', p);
+    renderAnagrafica(p);
+    showToast('Anagrafica aggiornata', 'success');
+  }).catch(function(){
+    // toast di errore già mostrato da sincronizzaPaziente
+  });
 }
 // ════════════════════════════════════════════
 // STORICO — con dettaglio terapia
@@ -2192,16 +2181,16 @@ function renderStorico(p) {
       : '';
     return '<div class="storico-item ' + cls + '">'
       + '<div class="storico-date">' + formatDate(s.data) + ' ' + icon
-      + (hasMedico ? ' · ' + s.medico : '')
-      + (hasDoc ? ' · ' + s.doc : '') + '</div>'
-      + '<div class="storico-action">' + s.azione + '</div>'
+      + (hasMedico ? ' · ' + escHtml(s.medico) : '')
+      + (hasDoc ? ' · ' + escHtml(s.doc) : '') + '</div>'
+      + '<div class="storico-action">' + escHtml(s.azione) + '</div>'
       + '<div class="storico-detail">'
-      + (tipo === 'consegna' && s.ndosette ? 'N° scatola: <b>' + s.ndosette + '</b> &middot; ' : '')
-      + (s.op && s.op !== '-' ? 'Op: <b>' + (OPERATORI.find(function(o){return o.sigla===s.op;})||{nome:s.op}).nome + ' (' + s.op + ')</b>' : '')
-      + (hasVisto && s.visto !== '-' ? ' &middot; Visto: <b>' + (OPERATORI.find(function(o){return o.sigla===s.visto;})||{nome:s.visto}).nome + ' (' + s.visto + ')</b>' : '')
+      + (tipo === 'consegna' && s.ndosette ? 'N° scatola: <b>' + escHtml(String(s.ndosette)) + '</b> &middot; ' : '')
+      + (s.op && s.op !== '-' ? 'Op: <b>' + escHtml((OPERATORI.find(function(o){return o.sigla===s.op;})||{nome:s.op}).nome) + ' (' + escHtml(s.op) + ')</b>' : '')
+      + (hasVisto && s.visto !== '-' ? ' &middot; Visto: <b>' + escHtml((OPERATORI.find(function(o){return o.sigla===s.visto;})||{nome:s.visto}).nome) + ' (' + escHtml(s.visto) + ')</b>' : '')
       + '</div>'
       + detailBtn
-      + (s.link ? '<div style="padding:4px 12px 8px"><a href="' + s.link + '" target="_blank" style="font-size:12px;color:var(--primary,#2979ff)">🔗 ' + s.link + '</a></div>' : '')
+      + (s.link ? '<div style="padding:4px 12px 8px"><a href="' + escHtml(s.link) + '" target="_blank" style="font-size:12px;color:var(--primary,#2979ff)">🔗 ' + escHtml(s.link) + '</a></div>' : '')
       + '</div>';
   }).join('');
 }
@@ -2213,7 +2202,7 @@ function mostraDettaglioTerapia(pazId, versione) {
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     + '<div><div class="modal-title" style="margin:0">Terapia v' + versione + '</div>'
     + '<div style="font-size:12px;color:var(--text2);margin-top:2px">'
-    + p.cognome + ' ' + p.nome + ' · Schema del ' + formatDate(t.dataSchema) + '</div></div>'
+    + escHtml(p.cognome) + ' ' + escHtml(p.nome) + ' · Schema del ' + formatDate(t.dataSchema) + '</div></div>'
     + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
     + '</div>'
     + '<div style="overflow-x:auto"><table class="farmaci-table" style="min-width:320px">'
@@ -2230,7 +2219,7 @@ function initLoginScreen() {
   sel.innerHTML = '<option value="">— Seleziona —</option>'
     + OPERATORI.filter(function(o){ return o.attivo !== false; })
                .map(function(o){
-                 return '<option value="' + o.sigla + '">' + o.nome + ' (' + o.ruolo + ')</option>';
+                 return '<option value="' + escHtml(o.sigla) + '">' + escHtml(o.nome) + ' (' + escHtml(o.ruolo) + ')</option>';
                }).join('');
   _loginPinBuffer = '';
   updateLoginDots();
@@ -2442,7 +2431,7 @@ function lockSession() {
   var sel = document.getElementById('lock-operatore');
   sel.innerHTML = '<option value="">— Seleziona operatore —</option>'
     + OPERATORI.filter(function(o){ return o.attivo !== false; })
-               .map(function(o){ return '<option value="' + o.sigla + '">' + o.nome + '</option>'; })
+               .map(function(o){ return '<option value="' + escHtml(o.sigla) + '">' + escHtml(o.nome) + '</option>'; })
                .join('');
   // Pre-seleziona l'operatore corrente
   if (currentOperatore) sel.value = currentOperatore.sigla;
@@ -2528,9 +2517,13 @@ function aggiornaDatFine() {
   var p = getCP();
   var durata = (p && p.durata) ? parseInt(p.durata) : 7;
   if (isNaN(durata) || durata < 1) durata = 7;
-  var dal = new Date(dalEl.value);
+  // Parsing esplicito per evitare interpretazione UTC (new Date("yyyy-mm-dd") è UTC)
+  var parts = dalEl.value.split('-');
+  var dal = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   dal.setDate(dal.getDate() + durata - 1);
-  alEl.value = dal.toISOString().split('T')[0];
+  var mm = String(dal.getMonth() + 1).padStart(2, '0');
+  var dd = String(dal.getDate()).padStart(2, '0');
+  alEl.value = dal.getFullYear() + '-' + mm + '-' + dd;
 }
 
 function avviaChecklist() {
@@ -2624,8 +2617,8 @@ function renderChecklist(p) {
       return '<div class="checklist-item" id="ca-' + i + '" onclick="toggleCheckAuto(' + i + ')">'
         + '<div class="checklist-checkbox" id="cba-' + i + '"></div>'
         + '<div class="checklist-text">'
-        + '<div class="checklist-farmaco">' + f.nome + '</div>'
-        + '<div class="checklist-dose">' + f.istruzioni + '</div>'
+        + '<div class="checklist-farmaco">' + escHtml(f.nome) + '</div>'
+        + '<div class="checklist-dose">' + escHtml(f.istruzioni || '') + '</div>'
         + '</div></div>';
     }).join('');
   } else {
@@ -2678,7 +2671,7 @@ function aggiornaSelectOperatori(subtitle) {
   sel.innerHTML = '<option value="">— Seleziona operatore —</option>'
     + OPERATORI.filter(function(o){ return o.attivo !== false; })
                .map(function(o){
-                 return '<option value="' + o.sigla + '">' + o.nome + ' · ' + o.ruolo + ' (' + o.sigla + ')</option>';
+                 return '<option value="' + escHtml(o.sigla) + '">' + escHtml(o.nome) + ' · ' + escHtml(o.ruolo) + ' (' + escHtml(o.sigla) + ')</option>';
                }).join('');
   if (subtitle) document.getElementById('pin-subtitle').textContent = subtitle;
 }
@@ -2789,8 +2782,8 @@ function firmaBox(f, icon) {
   return '<div class="firma-confirmed">'
     + '<span class="firma-icon">' + icon + '</span>'
     + '<div class="firma-info">'
-    + '<div class="firma-nome">' + f.nome + ' (' + f.sigla + ')' + (f.ruolo ? ' · ' + f.ruolo : '') + '</div>'
-    + '<div class="firma-ts">' + f.ts + '</div>'
+    + '<div class="firma-nome">' + escHtml(f.nome) + ' (' + escHtml(f.sigla) + ')' + (f.ruolo ? ' · ' + escHtml(f.ruolo) : '') + '</div>'
+    + '<div class="firma-ts">' + escHtml(f.ts || '') + '</div>'
     + '</div></div>';
 }
 
@@ -2804,19 +2797,26 @@ function chiudiPin() {
 // ════════════════════════════════════════════
 function completaPreparazione() {
   var p = getCP();
+  if (!p) { showToast('Errore: paziente non trovato', 'error'); return; }
   var prep = buildPreparazionePayload(p, 'OK');
   if (!prep) { showToast('Preparazione non valida', 'error'); return; }
+  var btn = document.querySelector('#btn-completa-prep button');
+  if (btn) btn.disabled = true;
   upsertPreparazione(p, prep);
   registraStoricoPreparazione(p, prep, firmaRiempimento ? firmaRiempimento.sigla : '-', firmaControllo ? firmaControllo.sigla : '-', true);
-  sincronizzaPaziente(p); // sync Firestore
-  showToast('Preparazione salvata!', 'success');
-  _checkedFissi = new Set(); _checkedAuto = new Set(); _checkedItems = new Set();
-  prepCorrente = null;
-  firmaRiempimento = null;
-  firmaControllo = null;
-  showScreen('screen-paziente');
-  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 1); });
-  switchTab('preparazione', null);
+  sincronizzaPaziente(p).then(function(){
+    showToast('Preparazione salvata!', 'success');
+    _checkedFissi = new Set(); _checkedAuto = new Set(); _checkedItems = new Set();
+    prepCorrente = null;
+    firmaRiempimento = null;
+    firmaControllo = null;
+    showScreen('screen-paziente');
+    document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 1); });
+    switchTab('preparazione', null);
+  }).catch(function(){
+    if (btn) btn.disabled = false;
+    // toast già mostrato da sincronizzaPaziente — l'utente rimane sulla schermata per riprovare
+  });
 }
 
 // ════════════════════════════════════════════
@@ -2829,10 +2829,30 @@ function showModificaTerapia() {
   editFissi       = p.terapia.fissi.map(function(f){ return Object.assign({}, f); });
   editAutogestiti = p.terapia.autogestiti.map(function(f){ return Object.assign({}, f); });
   editRiserva     = p.terapia.riserva.map(function(f){ return Object.assign({}, f); });
+  window._editTerapiaOriginale = JSON.stringify({ fissi: editFissi, auto: editAutogestiti, riserva: editRiserva });
   document.getElementById('motivo-modifica').value = '';
   document.getElementById('edit-medico').value     = p.medico;
   renderEditSection('fisso'); renderEditSection('autogestito'); renderEditSection('riserva');
   showScreen('screen-modifica-terapia');
+}
+
+function confermaEsciModificaTerapia() {
+  var corrente = JSON.stringify({ fissi: editFissi, auto: editAutogestiti, riserva: editRiserva });
+  var motivo = (document.getElementById('motivo-modifica') || {}).value || '';
+  if (corrente !== window._editTerapiaOriginale || motivo.trim()) {
+    mostraModal(
+      '<div style="text-align:center;padding:8px 0">'
+      + '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'
+      + '<div style="font-size:17px;font-weight:700;margin-bottom:8px">Modifiche non salvate</div>'
+      + '<div style="font-size:14px;color:var(--text2);margin-bottom:24px">Se esci ora le modifiche alla terapia andranno perse.</div>'
+      + '<div style="display:flex;gap:10px">'
+      + '<button class="btn btn-ghost" style="flex:1" onclick="chiudiModal()">Rimani</button>'
+      + '<button class="btn btn-danger" style="flex:1" onclick="chiudiModal();editFissi=[];editAutogestiti=[];editRiserva=[];showScreen(\'screen-paziente\')">Esci senza salvare</button>'
+      + '</div></div>'
+    );
+  } else {
+    showScreen('screen-paziente');
+  }
 }
 
 function renderEditSection(tipo) {
@@ -2874,10 +2894,6 @@ function renderEditSection(tipo) {
   }).join('');
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
 function updateFarmaco(tipo, i, campo, val) {
   var arr = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
   arr[i][campo] = (['mat','mez','ser','not'].indexOf(campo) !== -1) ? (parseFloat(val) || 0) : val;
@@ -2906,6 +2922,7 @@ function salvaNuovaVersione() {
   var documento = document.getElementById('edit-documento').value;
   if (!motivo) { showToast('Inserisci il motivo della modifica', 'error'); return; }
   var p = getCP();
+  if (!p) { showToast('Errore: paziente non trovato', 'error'); return; }
   // Salva snapshot della terapia corrente
   var vecchiaVersione = p.versione; // cattura prima dell'incremento
   var snapshotChiave  = p.id + '-v' + vecchiaVersione;
@@ -2915,7 +2932,6 @@ function salvaNuovaVersione() {
     autogestiti:  p.terapia.autogestiti.map(function(f){ return Object.assign({}, f); }),
     riserva:      p.terapia.riserva.map(function(f){ return Object.assign({}, f); })
   };
-  sincronizzaStorico(snapshotChiave, TERAPIE_STORICHE[snapshotChiave]); // sync Firestore
   p.versione++;
   p.terapia.dataSchemaPrecedente = p.terapia.dataSchema;
   p.terapia.dataSchema    = todayISO();
@@ -2928,11 +2944,18 @@ function salvaNuovaVersione() {
     azione: motivo, doc: documento,
     op:'-', visto:'-', versione: p.versione
   });
-  sincronizzaPaziente(p); // sync Firestore
-  showToast('Terapia v' + p.versione + ' salvata!', 'success');
-  showScreen('screen-paziente');
-  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 0); });
-  switchTab('terapia', null);
+  // Attende entrambe le sync prima di navigare
+  Promise.all([
+    sincronizzaStorico(snapshotChiave, TERAPIE_STORICHE[snapshotChiave]),
+    sincronizzaPaziente(p)
+  ]).then(function(){
+    showToast('Terapia v' + p.versione + ' salvata!', 'success');
+    showScreen('screen-paziente');
+    document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 0); });
+    switchTab('terapia', null);
+  }).catch(function(){
+    // toast già mostrato — l'utente rimane sulla schermata per riprovare
+  });
 }
 
 // ════════════════════════════════════════════
@@ -2944,7 +2967,7 @@ function salvaNuovoPaziente() {
   var ddn     = document.getElementById('new-ddn').value;
   if (!cognome || !nome || !ddn) { showToast('Compila i campi obbligatori', 'error'); return; }
   var newP = {
-    id:        'P' + Date.now(),
+    id:        'P' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
     cognome: cognome, nome: nome, ddn: ddn,
     medico:    document.getElementById('new-medico').value.trim(),
     giorno:    document.getElementById('new-giorno').value,
@@ -2984,8 +3007,8 @@ function renderOperatori() {
     return '<div class="operatore-row">'
       + '<div class="op-avatar">' + o.sigla + '</div>'
       + '<div class="op-info">'
-      + '<div class="op-nome">' + o.nome + '</div>'
-      + '<div class="op-ruolo">' + o.ruolo + ' · PIN: ' + pinLabel + ' · Sigla: ' + o.sigla + '</div>'
+      + '<div class="op-nome">' + escHtml(o.nome) + '</div>'
+      + '<div class="op-ruolo">' + escHtml(o.ruolo) + ' · PIN: ' + escHtml(pinLabel) + ' · Sigla: ' + escHtml(o.sigla) + '</div>'
       + '</div>'
       + '<button class="op-delete" onclick="rimuoviOperatore(' + i + ')" title="Rimuovi">✕</button>'
       + '</div>';
@@ -3040,7 +3063,20 @@ async function salvaOperatore() {
 
 function rimuoviOperatore(i) {
   var op = OPERATORI[i];
-  if (!confirm('Rimuovere ' + op.nome + ' (' + op.sigla + ')?\nNon potra piu firmare.')) return;
+  mostraModal(
+    '<div style="text-align:center;padding:8px 0">'
+    + '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'
+    + '<div style="font-size:17px;font-weight:700;margin-bottom:8px">Rimuovere ' + escHtml(op.nome) + '?</div>'
+    + '<div style="font-size:14px;color:var(--text2);margin-bottom:24px">' + escHtml(op.sigla) + ' non potrà più firmare le preparazioni.</div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn btn-ghost" style="flex:1" onclick="chiudiModal()">Annulla</button>'
+    + '<button class="btn btn-danger" style="flex:1" onclick="chiudiModal();_confermaRimuoviOp(' + i + ')">Rimuovi</button>'
+    + '</div></div>'
+  );
+}
+function _confermaRimuoviOp(i) {
+  var op = OPERATORI[i];
+  if (!op) return;
   if (FIREBASE_ENABLED && firestoreDB) {
     firestoreDB.collection('operatori').doc(op.sigla).delete()
       .catch(function(e){ console.error('Errore rimozione operatore:', e.code); });
@@ -3272,14 +3308,6 @@ function stampaTerapia() {
   var ms=(60-new Date().getSeconds())*1000;
   setTimeout(function(){tick();setInterval(tick,60000);},ms);
 })();
-
-// Se Firebase abilitato: carica da Firestore, poi renderHome
-// Se non abilitato: renderHome diretto con dati hardcoded (modalità demo)
-loadData().then(function(){
-  initLoginScreen();
-}).catch(function(){
-  initLoginScreen();
-});
 
 
 </script>
