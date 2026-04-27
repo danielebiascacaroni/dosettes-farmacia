@@ -1597,7 +1597,7 @@ async function migraDB() {
 // ════════════════════════════════════════════
 // DATI OPERATORI
 // ════════════════════════════════════════════
-function _gapMigra(p){if(!p.stato)p.stato='attivo';if(p.giornoInizio===undefined)p.giornoInizio='';if(p.numeroDosette===undefined)p.numeroDosette='';if(p.curatele===undefined)p.curatele=false;if(!p.telefono)p.telefono='';if(!p.indirizzo)p.indirizzo='';var t=p.terapia||{};(t.fissi||[]).forEach(function(f){if(f.sospeso===undefined)f.sospeso=false;});(t.autogestiti||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(t.riserva||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(p.preparazioni||[]).forEach(function(pr){if(!pr.note)pr.note='';if(!pr.opPrep)pr.opPrep='';if(!Array.isArray(pr.checklistCompletata))pr.checklistCompletata=[];if(!Array.isArray(pr.checklistAutoCompletata))pr.checklistAutoCompletata=[];if(pr.periodoDal===undefined)pr.periodoDal='';if(pr.periodoAl===undefined)pr.periodoAl='';if(pr.autoSalvataAlBlocco===undefined)pr.autoSalvataAlBlocco=(pr.esito==='AUTO-SALVATO');if(!pr.stato){if(pr.consegna)pr.stato='consegnata';else if(pr.firmaControllo)pr.stato='controllata';else if(pr.firmaRiempimento||pr.esito==='AUTO-SALVATO')pr.stato='preparata';else pr.stato='preparata';}});(t.storico||[]).forEach(function(hs){if(!hs.link)hs.link='';});return p;}
+function _gapMigra(p){if(!p.stato)p.stato='attivo';if(p.giornoInizio===undefined)p.giornoInizio='';if(p.numeroDosette===undefined)p.numeroDosette='';if(p.curatele===undefined)p.curatele=false;if(!p.telefono)p.telefono='';if(!p.indirizzo)p.indirizzo='';var t=p.terapia||{};(t.fissi||[]).forEach(function(f){if(f.sospeso===undefined)f.sospeso=false;});(t.autogestiti||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(t.riserva||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(p.preparazioni||[]).forEach(function(pr){if(!pr.note)pr.note='';if(!pr.opPrep)pr.opPrep='';if(!Array.isArray(pr.checklistCompletata))pr.checklistCompletata=[];if(!Array.isArray(pr.checklistAutoCompletata))pr.checklistAutoCompletata=[];if(pr.periodoDal===undefined)pr.periodoDal='';if(pr.periodoAl===undefined)pr.periodoAl='';if(pr.autoSalvataAlBlocco===undefined)pr.autoSalvataAlBlocco=(pr.esito==='AUTO-SALVATO');if(!pr.stato){if(pr.consegna)pr.stato='consegnata';else if(pr.firmaControllo)pr.stato='da_dispensare';else if(pr.firmaRiempimento||pr.esito==='AUTO-SALVATO')pr.stato='da_controllare';else pr.stato='da_controllare';}if(pr.stato==='preparata')pr.stato='da_controllare';if(pr.stato==='controllata')pr.stato='da_dispensare';});(t.storico||[]).forEach(function(hs){if(!hs.link)hs.link='';});return p;}
 let OPERATORI = [];
 
 // Snapshot terapie storiche (chiave: pazienteId-vN)
@@ -1608,6 +1608,7 @@ let consegnaFirma = null;
 let annulloFirma  = null;
 let prepCorrente  = null;
 let checklistMode = 'prepare';
+let controlloEccezionalePending = null;
 
 // ════════════════════════════════════════════
 // DATABASE DEMO
@@ -1723,18 +1724,20 @@ let _checklistItems   = [];   // {id, farmacoNome, momento, dose, note}
 let _checkedItems     = new Set();
 
 function getPrepWorkflowState(pr) {
-  if (!pr) return 'preparata';
+  if (!pr) return 'da_controllare';
   if (pr.consegna) return 'consegnata';
+  if (pr.stato === 'preparata') return 'da_controllare';
+  if (pr.stato === 'controllata') return 'da_dispensare';
   if (pr.stato) return pr.stato;
-  if (pr.firmaControllo) return 'controllata';
-  return 'preparata';
+  if (pr.firmaControllo) return 'da_dispensare';
+  return 'da_controllare';
 }
 
 function getPrepStateMeta(pr) {
   var stato = getPrepWorkflowState(pr);
   if (stato === 'consegnata') return { key: stato, label: 'CONSEGNATA', badge: 'badge-success' };
-  if (stato === 'controllata') return { key: stato, label: 'CONTROLLATA', badge: 'badge-success' };
-  return { key: 'preparata', label: 'PREPARATA', badge: 'badge-danger' };
+  if (stato === 'da_dispensare') return { key: stato, label: 'DA DISPENSARE', badge: 'badge-success' };
+  return { key: 'da_controllare', label: 'DA CONTROLLARE', badge: 'badge-danger' };
 }
 
 function resetPreparazioneFlow() {
@@ -1744,6 +1747,7 @@ function resetPreparazioneFlow() {
   prepCorrente = null;
   firmaRiempimento = null;
   firmaControllo = null;
+  controlloEccezionalePending = null;
   checklistMode = 'prepare';
 }
 
@@ -1806,7 +1810,7 @@ function avviaControlloPreparazione(prepId) {
   var prep = (p.preparazioni || []).find(function(pr){ return pr.id === prepId; });
   if (!prep) { showToast('Preparazione non trovata', 'error'); return; }
   if (prep.annullata) { showToast('Preparazione annullata', 'error'); return; }
-  if (getPrepWorkflowState(prep) !== 'preparata') { showToast('Preparazione non disponibile per il controllo', 'error'); return; }
+  if (getPrepWorkflowState(prep) !== 'da_controllare') { showToast('Preparazione non disponibile per il controllo', 'error'); return; }
 
   checklistMode = 'control';
   prepCorrente = {
@@ -2172,11 +2176,11 @@ function renderPreparazione(p) {
         + (riativaBtn ? '<div class="prep-actions">' + riativaBtn + '</div>' : '');
     } else {
       var btns = '';
-      if (statoInfo.key === 'preparata') {
+      if (statoInfo.key === 'da_controllare') {
         btns += '<button class="btn btn-sm btn-outline" style="flex:1" onclick="avviaControlloPreparazione(\''
           + escHtml(pr.id) + '\')">🔍 Controlla</button>';
       }
-      if (statoInfo.key === 'controllata' && !pr.consegna) {
+      if (statoInfo.key === 'da_dispensare' && !pr.consegna) {
         btns += '<button class="btn btn-sm btn-outline" style="flex:1" onclick="showConsegnaModal(\''
           + escHtml(pr.id) + '\')">📦 Registra consegna</button>';
       }
@@ -2199,6 +2203,9 @@ function renderPreparazione(p) {
       + ' <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">'
       + escHtml(pr.firmaControllo ? pr.firmaControllo.ts : '') + '</span></span>'
       + '</div>'
+      + (pr.controlloEccezionale ? '<div class="prep-note-box" style="background:#fff8e1;border-color:#ffd54f;color:#8d6e63">⚠️ Controllo eccezionale dallo stesso operatore'
+        + (pr.controlloEccezionale.motivo ? ' · Motivo: ' + escHtml(pr.controlloEccezionale.motivo) : '')
+        + '</div>' : '')
       + (pr.autoSalvataAlBlocco ? '<div class="prep-note-box" style="background:#fff8e1;border-color:#ffd54f;color:#8d6e63">⚠️ Salvata automaticamente al blocco sessione</div>' : '')
       + (pr.note ? '<div class="prep-note-box">📝 ' + escHtml(pr.note) + '</div>' : '') + (pr.opPrep ? '<div style="font-size:11px;color:#888;padding:0 0 4px 2px">Preparato da: <b>' + escHtml(pr.opPrep) + '</b></div>' : '') + consegnaHtml + actionsHtml
       + '</div>';
@@ -2213,7 +2220,7 @@ function showConsegnaModal(prepId) {
   var p    = getCP();
   var prep = p.preparazioni.find(function(pr){ return pr.id === prepId; });
   if (!prep) { showToast('Preparazione non trovata', 'error'); return; }
-  if (getPrepWorkflowState(prep) !== 'controllata') { showToast('La consegna è disponibile solo dopo il controllo', 'error'); return; }
+  if (getPrepWorkflowState(prep) !== 'da_dispensare') { showToast('La consegna è disponibile solo dopo il controllo', 'error'); return; }
   var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
     + '<div class="modal-title" style="margin:0">📦 Registra consegna</div>'
     + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
@@ -2341,7 +2348,7 @@ function confermaRiattiva(prepId) {
   prep.annulloMotivo = null;
   prep.annulloOp = null;
   prep.annulloTs = null;
-  prep.stato = prep.consegna ? 'consegnata' : (prep.firmaControllo ? 'controllata' : 'preparata');
+  prep.stato = prep.consegna ? 'consegnata' : (prep.firmaControllo ? 'da_dispensare' : 'da_controllare');
   p.storico.push({
     tipo:'preparazione', data:todayISO(), medico:'-',
     azione:'Preparazione riattivata' + (motivo ? ': ' + motivo : ''),
@@ -2740,7 +2747,7 @@ document.addEventListener('keydown', resetSessionTimer);
 function buildPreparazionePayload(p, esito) {
   if (!prepCorrente || !firmaRiempimento) return null;
   var stato = esito;
-  if (!stato || stato === 'AUTO-SALVATO') stato = 'preparata';
+  if (!stato || stato === 'AUTO-SALVATO') stato = 'da_controllare';
   var periodo = (prepCorrente.dal && prepCorrente.al)
     ? (formatDate(prepCorrente.dal) + ' – ' + formatDate(prepCorrente.al))
     : (prepCorrente.periodoTesto || '');
@@ -2760,9 +2767,15 @@ function buildPreparazionePayload(p, esito) {
     totalItemsChecklist:  (_checklistItems || []).length + (((p.terapia || {}).autogestiti || []).length),
     esito:                stato.toUpperCase(),
     stato:                stato,
+    controlloEccezionale: firmaControllo && firmaControllo.controlloEccezionale ? {
+      sigla: firmaControllo.sigla,
+      nome: firmaControllo.nome,
+      motivo: firmaControllo.motivoEccezionale || '',
+      ts: firmaControllo.ts || now()
+    } : null,
     annullata:            false,
     autoSalvataAlBlocco:  esito === 'AUTO-SALVATO',
-    inCorso:              stato === 'preparata'
+    inCorso:              stato === 'da_controllare'
   };
 }
 
@@ -2778,8 +2791,9 @@ function upsertPreparazione(p, prep) {
 
 function registraStoricoPreparazione(p, prep, opSigla, vistoSigla, isUpdate) {
   var azione = 'Preparazione dosette N° ' + (prep.numeroDosette || '?') + ' · ' + prep.periodo;
-  if (prep.stato === 'controllata') azione += ' · controllata';
+  if (prep.stato === 'da_dispensare') azione += ' · controllata';
   else azione += ' · preparata';
+  if (prep.controlloEccezionale) azione += ' [controllo eccezionale]';
   if (prep.autoSalvataAlBlocco) azione += ' [auto-salvato al blocco]';
   var entry = {
     tipo:'preparazione', data:todayISO(), medico:'-',
@@ -2804,7 +2818,7 @@ function salvaPreparazioneAuto() {
   if (!prepCorrente || !firmaRiempimento) return;
   var p = getCP();
   if (!p) return;
-  var autoState = (checklistMode === 'control' && firmaControllo) ? 'controllata' : 'AUTO-SALVATO';
+  var autoState = (checklistMode === 'control' && firmaControllo) ? 'da_dispensare' : 'AUTO-SALVATO';
   var prep = buildPreparazionePayload(p, autoState);
   if (!prep) return;
   if (checklistMode === 'control' && firmaControllo) prep.autoSalvataAlBlocco = true;
@@ -3071,6 +3085,51 @@ function aggiornaSelectOperatori(subtitle) {
   if (subtitle) document.getElementById('pin-subtitle').textContent = subtitle;
 }
 
+function finalizzaFirmaControllo(firma, controlloEccezionale) {
+  firmaControllo = Object.assign({}, firma);
+  if (controlloEccezionale) {
+    firmaControllo.controlloEccezionale = true;
+    firmaControllo.motivoEccezionale = controlloEccezionale.motivo;
+  }
+  updateChecklistWorkflowUI();
+  showToast(controlloEccezionale ? 'Controllo eccezionale registrato ✓' : 'Firma controllo registrata ✓', 'success');
+}
+
+function apriControlloEccezionale(firma) {
+  controlloEccezionalePending = firma;
+  mostraModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0;color:#b26a00">⚠️ Controllo eccezionale</div>'
+    + '<button onclick="chiudiModal();controlloEccezionalePending=null" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div style="font-size:14px;color:var(--text2);margin-bottom:14px">Il controllore coincide con il riempitore. Procedi solo in casi eccezionali e registra il motivo.</div>'
+    + '<div class="prep-note-box" style="margin-bottom:14px;background:#fff8e1;border-color:#ffd54f;color:#8d6e63">'
+    + '<b>Operatore:</b> ' + escHtml(firma.nome) + ' (' + escHtml(firma.sigla) + ')</div>'
+    + '<div class="form-group" style="margin-bottom:18px">'
+    + '<label class="form-label">Motivo obbligatorio</label>'
+    + '<textarea id="controllo-eccezionale-motivo" class="form-input" style="min-height:96px;resize:vertical" placeholder="Spiega perché il controllo viene firmato dalla stessa persona"></textarea>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn btn-ghost" style="flex:1" onclick="chiudiModal();controlloEccezionalePending=null">Annulla</button>'
+    + '<button class="btn btn-primary" style="flex:1" onclick="confermaControlloEccezionale()">Conferma eccezione</button>'
+    + '</div>'
+  );
+}
+
+function confermaControlloEccezionale() {
+  var motivo = ((document.getElementById('controllo-eccezionale-motivo') || {}).value || '').trim();
+  if (!motivo) { showToast('Inserisci il motivo del controllo eccezionale', 'error'); return; }
+  if (!controlloEccezionalePending) { chiudiModal(); return; }
+  firmaControllo = Object.assign({}, controlloEccezionalePending, {
+    controlloEccezionale: true,
+    motivoEccezionale: motivo
+  });
+  controlloEccezionalePending = null;
+  chiudiModal();
+  updateChecklistWorkflowUI();
+  showToast('Controllo eccezionale registrato ✓', 'success');
+}
+
 function richiediFirma(tipo) {
   pinBuffer   = '';
   pinCallback = tipo;
@@ -3109,11 +3168,6 @@ async function verificaPin() {
   var op = OPERATORI.find(function(o){ return o.sigla === sigla; });
   if (!op) return;
 
-  // Blocco: controllore = riempitore
-  if (pinCallback === 'controllo' && firmaRiempimento && firmaRiempimento.sigla === sigla) {
-    errorePin('❌ Il controllore deve essere diverso dal riempitore'); return;
-  }
-
   // Verifica PIN: SHA-256 se Firestore abilitato (pinHash), plain se locale (pin)
   var pinOk = false;
   if (FIREBASE_ENABLED && op.pinHash) {
@@ -3138,9 +3192,11 @@ async function verificaPin() {
     showToast('Firma riempimento registrata ✓', 'success');
 
   } else if (pinCallback === 'controllo') {
-    firmaControllo = firma;
-    updateChecklistWorkflowUI();
-    showToast('Firma controllo registrata ✓', 'success');
+    if (firmaRiempimento && firmaRiempimento.sigla === firma.sigla) {
+      apriControlloEccezionale(firma);
+      return;
+    }
+    finalizzaFirmaControllo(firma, null);
 
   } else if (pinCallback && pinCallback.indexOf('consegna:') === 0) {
     consegnaFirma = firma;
@@ -3191,8 +3247,8 @@ function completaPreparazione() {
   var p = getCP();
   if (!p) { showToast('Errore: paziente non trovato', 'error'); return; }
   if (!firmaRiempimento) { showToast('Manca la firma di riempimento', 'error'); return; }
-  var statoTarget = checklistMode === 'control' ? 'controllata' : 'preparata';
-  if (statoTarget === 'controllata' && !firmaControllo) { showToast('Manca la firma di controllo', 'error'); return; }
+  var statoTarget = checklistMode === 'control' ? 'da_dispensare' : 'da_controllare';
+  if (statoTarget === 'da_dispensare' && !firmaControllo) { showToast('Manca la firma di controllo', 'error'); return; }
   var prep = buildPreparazionePayload(p, statoTarget);
   if (!prep) { showToast('Preparazione non valida', 'error'); return; }
   var btn = document.querySelector('#btn-completa-prep button');
@@ -3200,9 +3256,14 @@ function completaPreparazione() {
   upsertPreparazione(p, prep);
   registraStoricoPreparazione(p, prep, firmaRiempimento ? firmaRiempimento.sigla : '-', firmaControllo ? firmaControllo.sigla : '-', true);
   sincronizzaPaziente(p).then(function(){
-    showToast(statoTarget === 'controllata' ? 'Controllo salvato!' : 'Preparazione salvata!', 'success');
     resetPreparazioneFlow();
-    openPreparazioneTab();
+    if (statoTarget === 'da_controllare') {
+      showToast('Preparazione salvata. Effettuare un nuovo login per il controllo.', 'success');
+      logout();
+      return;
+    }
+    showToast('Controllo salvato. Effettuare un nuovo login per la dispensazione.', 'success');
+    logout();
   }).catch(function(){
     if (btn) btn.disabled = false;
     // toast già mostrato da sincronizzaPaziente — l'utente rimane sulla schermata per riprovare
