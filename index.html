@@ -904,6 +904,7 @@ body {
       <span class="search-icon">🔍</span>
       <input type="search" id="search-input" placeholder="Cerca paziente..." autocomplete="off" autocorrect="off" spellcheck="false">
     </div>
+    <div id="patient-search-results"></div>
     <div class="section-header">
       <span class="section-title">Pazienti</span>
       <select id="filtro-stato" class="filtro-stato" onchange="renderHome()">
@@ -1999,6 +2000,7 @@ function openQueueItem(patientId, prepId, stato) {
 // ════════════════════════════════════════════
 function renderHome() {
   var q = ((document.getElementById('search-input') || {}).value || '').toLowerCase().trim();
+  var resultsEl = document.getElementById('patient-search-results');
   var badge = document.getElementById('count-badge');
   var queueEl = document.getElementById('workflow-queue');
   var queue = [];
@@ -2015,6 +2017,34 @@ function renderHome() {
     return (_fs==='tutti'||(p.stato||'attivo')===_fs) && hay.indexOf(q)!==-1;
   });
   badge.textContent = fil.length;
+  if (resultsEl) {
+    if (!q) {
+      resultsEl.innerHTML = '';
+    } else if (!fil.length) {
+      resultsEl.innerHTML = '<div class="empty-state" style="padding:14px 0 8px"><div class="icon">🔍</div><p>Nessun paziente trovato</p></div>';
+    } else {
+      resultsEl.innerHTML = fil.map(function(p){
+        var ha  = p.allergie && p.allergie.trim();
+        var ini = escHtml(((p.cognome||'?')[0] || '?') + (((p.nome||'')[0]) || ''));
+        var badges = '';
+        if (ha)  badges += '<span class="badge badge-danger">⚠️ ' + escHtml(p.allergie) + '</span>';
+        badges += '<span class="badge badge-gray">' + escHtml(p.giorno || '—') + '</span>';
+        badges += '<span class="badge badge-info">v' + escHtml(String(p.versione || '—')) + '</span>';
+        if (p.note && p.note.toLowerCase().indexOf('diabetico') !== -1)
+          badges += '<span class="badge badge-warning">Diabetico</span>';
+        if (p.note && p.note.toLowerCase().indexOf('dialisi') !== -1)
+          badges += '<span class="badge badge-info">Dialisi</span>';
+        var statoSafe = escHtml(p.stato || 'attivo');
+        return '<div class="patient-item" data-pid="' + escHtml(p.id) + '" onclick="openPaziente(this.getAttribute(\'data-pid\'))">'
+          + '<div class="patient-avatar' + (ha ? ' has-allergy' : '') + '">' + ini + '</div>'
+          + '<div class="patient-info">'
+          + '<div class="patient-name">' + escHtml(p.cognome) + ' ' + escHtml(p.nome) + '</div>'
+          + '<div class="patient-meta">' + formatDate(p.ddn) + ' · ' + formatAge(p.ddn) + ' · ' + escHtml(p.medico || '—') + '</div>'
+          + '<div class="patient-badges">' + ((p.stato&&p.stato!=='attivo') ? '<span class="badge-stato-' + statoSafe + '">' + statoSafe.toUpperCase() + '</span>' : '') + badges + '</div>'
+          + '</div><span class="chevron">›</span></div>';
+      }).join('');
+    }
+  }
   if (queueEl) {
     if (!queue.length) {
       queueEl.innerHTML = '<div class="card" style="background:var(--surface2);border-color:var(--border);margin-bottom:14px"><div style="font-size:14px;font-weight:700;margin-bottom:6px">Coda operativa</div><div style="font-size:13px;color:var(--text2)">Nessuna dosette in attesa di controllo o consegna.</div></div>';
