@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
 :root {
   --bg: #F4F2EE;
@@ -799,15 +800,45 @@ body {
 .login-pin-btn.action { font-size: 20px; font-weight: 500; }
 .login-pin-btn.confirm-ready { background: rgba(255,255,255,0.25); border-color: white; }
 /* -- LOGOUT BUTTON -- */
+.foto-thumb {
+  width: 56px; height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid var(--primary);
+  cursor: pointer;
+  display: block;
+}
+.edit-foto-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.edit-foto-remove {
+  position: absolute;
+  top: -7px; right: -7px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1;
+}
 .header-user {
   font-size: 12px; font-weight: 700;
   background: rgba(255,255,255,0.95);
   border-radius: 20px; padding: 5px 12px;
   color: var(--accent-dark);
   cursor: pointer;
-  white-space: nowrap;
   border: none;
   letter-spacing: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.3;
 }
 </style>
 </head>
@@ -949,7 +980,7 @@ body {
 <div id="screen-paziente" class="screen">
   <div class="header">
     <button class="header-back" onclick="showScreen('screen-home')">←</button>
-    <div style="flex:1">
+    <div style="flex:1;text-align:center">
       <div class="header-title" id="pz-header-nome"></div>
       <div class="header-subtitle" id="pz-header-meta"></div>
     </div>
@@ -973,6 +1004,7 @@ body {
         </div>
         <button class="btn btn-sm btn-primary" id="btn-modifica-terapia" onclick="showModificaTerapia()">✏️ Modifica</button>
       </div>
+      <div id="terapia-foto-bar"></div>
       <div class="card" style="padding:0; overflow:hidden;">
         <table class="farmaci-table" id="terapia-table"></table>
       </div>
@@ -1157,6 +1189,14 @@ body {
       <button class="btn btn-sm btn-outline" onclick="aggiungiFarmaco('riserva')">+ Aggiungi</button>
     </div>
     <div id="edit-riserva"></div>
+
+    <div class="divider"></div>
+    <div class="section-header" style="margin-top:0">
+      <span class="section-title">📷 Foto ricetta / schema</span>
+      <span style="font-size:12px;color:var(--text2)">max 2</span>
+    </div>
+    <div id="edit-foto-container"></div>
+    <input type="file" id="edit-foto-input" accept="image/*" capture="environment" style="display:none" onchange="aggiungiEditFoto(this)">
 
     <div style="margin-top:24px; padding-bottom:40px">
       <button class="btn btn-primary btn-full" style="font-size:17px; padding:16px" onclick="salvaNuovaVersione()">
@@ -1731,6 +1771,7 @@ let firmaControllo    = null;
 let editFissi         = [];
 let editAutogestiti   = [];
 let editRiserva       = [];
+let _editFoto         = [];
 let _checkedFissi     = new Set();
 let _checkedAuto      = new Set();
 let _checklistItems   = [];   // {id, farmacoNome, momento, dose, note}
@@ -2137,7 +2178,7 @@ function renderStoricoList(data) {
     var metaParts = [dataStr, d.opNome && d.opNome !== '—' ? d.opNome : ''].filter(Boolean);
     if (d.vistoNome) metaParts.push('✓ ' + d.vistoNome);
     if (d.ndosette) metaParts.push(d.ndosette + ' dos.');
-    return '<div class="patient-item" onclick="apriDettaglioStorico(' + JSON.stringify(d.key) + ')">'
+    return '<div class="patient-item" data-key="' + escHtml(d.key) + '" onclick="apriDettaglioStorico(this.dataset.key)">'
       + '<div class="patient-info">'
       + '<div class="patient-name">' + tipoIcon + ' ' + escHtml(d.patientName) + '</div>'
       + '<div class="patient-meta">' + escHtml(metaParts.join(' · ')) + '</div>'
@@ -2166,7 +2207,10 @@ function apriDettaglioStorico(key) {
     + '</div>'
     + '</div>';
   mostraModal('<div style="padding:4px"><div style="font-size:16px;font-weight:700;margin-bottom:16px">📋 '+escHtml(d.patientName)+'</div>'+body
-    +'<div style="text-align:right;margin-top:20px"><button class="btn btn-primary" onclick="chiudiModal()">Chiudi</button></div></div>');
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px">'
+    +'<button class="btn btn-ghost" onclick="chiudiModal();openPaziente(\''+escHtml(d.patientId)+'\')">👤 Vai alla scheda</button>'
+    +'<button class="btn btn-primary" onclick="chiudiModal()">Chiudi</button>'
+    +'</div></div>');
 }
 
 // ════════════════════════════════════════════
@@ -2214,7 +2258,61 @@ function switchTab(tab, btn) {
 // ════════════════════════════════════════════
 function renderTerapia(p) {
   document.getElementById('versione-label').textContent = 'v' + p.versione + ' · ' + formatDate(p.terapia.dataSchema);
+  renderFotoTerapia(p.terapia.foto || []);
   document.getElementById('terapia-table').innerHTML = buildTerapiaTable(p.terapia);
+}
+
+function renderFotoTerapia(foto) {
+  var el = document.getElementById('terapia-foto-bar');
+  if (!el) return;
+  var urls = (foto || []).filter(Boolean);
+  if (!urls.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:6px 0 10px">'
+    + '<span style="font-size:12px;color:var(--text2);font-weight:600;white-space:nowrap">📷 Ricetta/Schema:</span>'
+    + urls.map(function(url, i) {
+        return '<a href="' + escHtml(url) + '" target="_blank" title="Apri foto ' + (i+1) + '">'
+          + '<img src="' + escHtml(url) + '" class="foto-thumb" alt="Foto ' + (i+1) + '">'
+          + '</a>';
+      }).join('')
+    + '</div>';
+}
+
+function renderEditFoto() {
+  var el = document.getElementById('edit-foto-container');
+  if (!el) return;
+  var html = '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:8px 0">';
+  for (var i = 0; i < _editFoto.length; i++) {
+    var ef = _editFoto[i];
+    var src = ef.previewUrl || ef.storageUrl || '';
+    html += '<div class="edit-foto-card">'
+      + '<button class="edit-foto-remove" onclick="rimuoviEditFoto(' + i + ')">✕</button>'
+      + '<img src="' + escHtml(src) + '" class="foto-thumb" style="width:72px;height:72px" alt="Foto ' + (i+1) + '">'
+      + '<div style="font-size:10px;color:var(--text2);margin-top:4px">Foto ' + (i+1) + '</div>'
+      + '</div>';
+  }
+  if (_editFoto.length < 2) {
+    html += '<button class="btn btn-outline" onclick="document.getElementById(\'edit-foto-input\').click()"'
+      + ' style="width:72px;height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;gap:4px;border-style:dashed">'
+      + '<span style="font-size:22px">📷</span>Aggiungi'
+      + '</button>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function aggiungiEditFoto(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (_editFoto.length >= 2) { showToast('Massimo 2 foto per terapia', 'error'); return; }
+  _editFoto.push({ file: file, previewUrl: URL.createObjectURL(file) });
+  input.value = '';
+  renderEditFoto();
+}
+
+function rimuoviEditFoto(i) {
+  if (_editFoto[i] && _editFoto[i].previewUrl) URL.revokeObjectURL(_editFoto[i].previewUrl);
+  _editFoto.splice(i, 1);
+  renderEditFoto();
 }
 
 function buildTerapiaTable(t) {
@@ -2279,7 +2377,7 @@ function renderPreparazione(p) {
 
     var actionsHtml = '';
     if (canceled) {
-      var riativaBtn = (currentOperatore && currentOperatore.ruolo === 'Farmacista')
+      var riativaBtn = isFarmacista(currentOperatore)
         ? '<button class="btn btn-sm btn-outline" style="flex:1;margin-top:8px" onclick="riattivaPrepara(\''
           + escHtml(pr.id) + '\')">&uarr; Riattiva preparazione</button>'
         : '';
@@ -2437,7 +2535,7 @@ function salvaConsegna() {
 // RIATTIVA PREPARAZIONE (solo Farmacista)
 // ════════════════════════════════════════════
 function riattivaPrepara(prepId) {
-  if (!currentOperatore || currentOperatore.ruolo !== 'Farmacista') {
+  if (!isFarmacista(currentOperatore)) {
     showToast('Funzione riservata al Farmacista', 'error');
     return;
   }
@@ -2459,7 +2557,7 @@ function riattivaPrepara(prepId) {
 }
 
 function confermaRiattiva(prepId) {
-  if (!currentOperatore || currentOperatore.ruolo !== 'Farmacista') {
+  if (!isFarmacista(currentOperatore)) {
     showToast('Funzione riservata al Farmacista', 'error');
     return;
   }
@@ -2561,7 +2659,7 @@ function renderAnagrafica(p) {
   document.getElementById('anagrafica-content').innerHTML = html;
   // Mostra pulsante solo a Farmacista
   var bar = document.getElementById('anagrafica-modifica-bar');
-  if (bar) bar.style.display = (currentOperatore && currentOperatore.ruolo === 'Farmacista') ? '' : 'none';
+  if (bar) bar.style.display = isFarmacista(currentOperatore) ? '' : 'none';
 }
 
 
@@ -2569,7 +2667,7 @@ function renderAnagrafica(p) {
 // MODIFICA ANAGRAFICA PAZIENTE
 // ════════════════════════════════════════════
 function showModificaAnagrafica() {
-  if (!currentOperatore || currentOperatore.ruolo !== 'Farmacista') {
+  if (!isFarmacista(currentOperatore)) {
     showToast('Solo le farmaciste possono modificare l\'anagrafica', 'error'); return;
   }
   var p = getCP();
@@ -2709,6 +2807,17 @@ function renderStorico(p) {
 function mostraDettaglioTerapia(pazId, versione) {
   var p = getPaziente(pazId);
   var t = (versione === p.versione) ? p.terapia : (TERAPIE_STORICHE[pazId + '-v' + versione] || p.terapia);
+  var fotoHtml = '';
+  if (t.foto && t.foto.length) {
+    fotoHtml = '<div style="display:flex;align-items:center;gap:10px;margin:0 0 14px">'
+      + '<span style="font-size:12px;color:var(--text2);font-weight:600;white-space:nowrap">📷 Ricetta/Schema:</span>'
+      + t.foto.filter(Boolean).map(function(url, i) {
+          return '<a href="' + escHtml(url) + '" target="_blank" title="Apri foto ' + (i+1) + '">'
+            + '<img src="' + escHtml(url) + '" class="foto-thumb" alt="Foto ' + (i+1) + '">'
+            + '</a>';
+        }).join('')
+      + '</div>';
+  }
   mostraModal(
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     + '<div><div class="modal-title" style="margin:0">Terapia v' + versione + '</div>'
@@ -2716,6 +2825,7 @@ function mostraDettaglioTerapia(pazId, versione) {
     + escHtml(p.cognome) + ' ' + escHtml(p.nome) + ' · Schema del ' + formatDate(t.dataSchema) + '</div></div>'
     + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
     + '</div>'
+    + fotoHtml
     + '<div style="overflow-x:auto"><table class="farmaci-table" style="min-width:320px">'
     + buildTerapiaTable(t)
     + '</table></div>'
@@ -2819,7 +2929,7 @@ async function loginPinConfirm() {
   updateLoginDots();
   errEl.textContent = '';
   var badge = document.getElementById('header-user-badge');
-  if (badge) badge.textContent = op.nome + ' (' + op.ruolo + ')';
+  if (badge) badge.innerHTML = escHtml(op.nome) + ' (' + escHtml(op.ruolo) + ')<br><span style="font-size:9px;font-weight:400;opacity:0.6">clicca per logout</span>';
   applicaRuolo();
   startSessionTimer();
   await loadData();
@@ -2841,10 +2951,16 @@ function logout() {
   showScreen('screen-login');
 }
 
+function isFarmacista(op) {
+  if (!op) return false;
+  var r = op.ruolo || '';
+  return r === 'Farmacista' || r === 'farmacista' || r === 'amministratore';
+}
+
 function applicaRuolo() {
   if (!currentOperatore) return;
   var btnMod = document.getElementById('btn-modifica-terapia');
-  if (btnMod) btnMod.style.display = (currentOperatore.ruolo === 'Farmacista') ? '' : 'none';
+  if (btnMod) btnMod.style.display = isFarmacista(currentOperatore) ? '' : 'none';
 }
 
 // ===== SESSION LOCK: 5 min inattività -> LOCK, 30 min -> LOGOUT =====
@@ -2987,7 +3103,7 @@ function unlockSession(op) {
   currentOperatore = { sigla: op.sigla, nome: op.nome, ruolo: op.ruolo };
   document.getElementById('lock-overlay').style.display = 'none';
   var badge = document.getElementById('header-user-badge');
-  if (badge) badge.textContent = op.nome;
+  if (badge) badge.innerHTML = escHtml(op.nome) + '<br><span style="font-size:9px;font-weight:400;opacity:0.6">clicca per logout</span>';
   applicaRuolo();
   startSessionTimer();
   showToast('Bentornat' + (op.nome.slice(-1).toLowerCase() === 'a' ? 'a' : 'o') + ' ' + op.nome, 'success');
@@ -3314,7 +3430,7 @@ async function verificaPin() {
 
   // Dispatcher in base al callback
   if (pinCallback === 'modificaTerapia') {
-    if (op.ruolo !== 'Farmacista') { errorePin('❌ Solo i Farmacisti possono modificare la terapia'); return; }
+    if (!isFarmacista(op)) { errorePin('❌ Solo i Farmacisti possono modificare la terapia'); return; }
     window._autorizModifica = true; chiudiPin(); showModificaTerapia(); return;
   }
   if (pinCallback === 'riempimento') {
@@ -3417,10 +3533,12 @@ function showModificaTerapia() {
   editFissi       = p.terapia.fissi.map(function(f){ return Object.assign({}, f); });
   editAutogestiti = p.terapia.autogestiti.map(function(f){ return Object.assign({}, f); });
   editRiserva     = p.terapia.riserva.map(function(f){ return Object.assign({}, f); });
+  _editFoto       = (p.terapia.foto || []).map(function(url){ return { storageUrl: url }; });
   window._editTerapiaOriginale = JSON.stringify({ fissi: editFissi, auto: editAutogestiti, riserva: editRiserva });
   document.getElementById('motivo-modifica').value = '';
   document.getElementById('edit-medico').value     = p.medico;
   renderEditSection('fisso'); renderEditSection('autogestito'); renderEditSection('riserva');
+  renderEditFoto();
   showScreen('screen-modifica-terapia');
 }
 
@@ -3504,21 +3622,42 @@ function aggiungiFarmaco(tipo) {
   }, 50);
 }
 
-function salvaNuovaVersione() {
+async function salvaNuovaVersione() {
   var motivo    = document.getElementById('motivo-modifica').value.trim();
   var medico    = document.getElementById('edit-medico').value.trim();
   var documento = document.getElementById('edit-documento').value;
   if (!motivo) { showToast('Inserisci il motivo della modifica', 'error'); return; }
   var p = getCP();
   if (!p) { showToast('Errore: paziente non trovato', 'error'); return; }
-  // Salva snapshot della terapia corrente
-  var vecchiaVersione = p.versione; // cattura prima dell'incremento
+
+  // Upload foto pendenti su Firebase Storage
+  var nuovaVers = p.versione + 1;
+  var fotoUrls = [];
+  for (var fi = 0; fi < _editFoto.length; fi++) {
+    var ef = _editFoto[fi];
+    if (ef.storageUrl) {
+      fotoUrls.push(ef.storageUrl);
+    } else if (ef.file) {
+      try {
+        var storRef = firebase.storage().ref('dosettes/foto/' + p.id + '/v' + nuovaVers + '_' + (fi + 1));
+        await storRef.put(ef.file);
+        fotoUrls.push(await storRef.getDownloadURL());
+      } catch (e) {
+        showToast('Errore upload foto ' + (fi + 1) + ' — controlla la connessione', 'error');
+        return;
+      }
+    }
+  }
+
+  // Salva snapshot della terapia corrente (con le sue foto)
+  var vecchiaVersione = p.versione;
   var snapshotChiave  = p.id + '-v' + vecchiaVersione;
   TERAPIE_STORICHE[snapshotChiave] = {
     dataSchema:   p.terapia.dataSchema,
     fissi:        p.terapia.fissi.map(function(f){ return Object.assign({}, f); }),
     autogestiti:  p.terapia.autogestiti.map(function(f){ return Object.assign({}, f); }),
-    riserva:      p.terapia.riserva.map(function(f){ return Object.assign({}, f); })
+    riserva:      p.terapia.riserva.map(function(f){ return Object.assign({}, f); }),
+    foto:         (p.terapia.foto || []).slice()
   };
   p.versione++;
   p.terapia.dataSchemaPrecedente = p.terapia.dataSchema;
@@ -3526,6 +3665,7 @@ function salvaNuovaVersione() {
   p.terapia.fissi         = editFissi.filter(function(f){ return f.nome.trim(); });
   p.terapia.autogestiti   = editAutogestiti.filter(function(f){ return f.nome.trim(); });
   p.terapia.riserva       = editRiserva.filter(function(f){ return f.nome.trim(); });
+  p.terapia.foto          = fotoUrls;
   p.storico.push({
     tipo:'terapia', data:todayISO(),
     medico: medico || p.medico,
