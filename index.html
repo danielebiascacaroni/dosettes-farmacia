@@ -1,0 +1,4282 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dosettes v8 V2 – Farmacia Ascona</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- ════════════════════════════════════════════
+     FIREBASE SDK (Compat v10) — CDN ufficiale Google
+     Piano Spark gratuito — server eur3 (Europe-West, nLPD-conforme)
+════════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<style>
+:root {
+  --bg: #F4F2EE;
+  --surface: #FFFFFF;
+  --surface2: #EDEAE4;
+  --border: #D8D4CC;
+  --text: #1A1916;
+  --text2: #6B6760;
+  --text3: #9E9A94;
+  --accent: #40916C;
+  --accent-light: #D8EDDF;
+  --accent-dark: #2D6A4F;
+  --danger: #C0392B;
+  --danger-light: #FDECEA;
+  --warning: #E67E22;
+  --warning-light: #FEF3E2;
+  --info: #2980B9;
+  --info-light: #EBF5FB;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --purple: #7B2D8B;
+  --purple-light: #F3E5F5;
+  --canceled: #95A5A6;
+  --canceled-light: #F2F3F4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ── LAYOUT ── */
+#app { display: flex; flex-direction: column; min-height: 100vh; }
+
+.screen { display: none; flex-direction: column; flex: 1; }
+.screen.active { display: flex; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--accent-dark);
+  color: white;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.header-back {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.header-back:active { background: rgba(255,255,255,0.25); }
+.header-title { font-size: 18px; font-weight: 600; flex: 1; }
+.header-subtitle { font-size: 12px; opacity: 0.75; }
+.header-action {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.2s;
+}
+.header-action:active { background: rgba(255,255,255,0.25); }
+
+/* ── CONTENT ── */
+.content { padding: 20px; flex: 1; overflow-y: auto; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.card-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  margin-bottom: 12px;
+}
+
+/* ── ALERT ALLERGIE ── */
+.allergie-banner {
+  background: var(--danger);
+  color: white;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 15px;
+}
+.allergie-banner .icon { font-size: 20px; }
+.no-allergie-banner {
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ── SEARCH ── */
+.search-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+.search-wrap input {
+  width: 100%;
+  padding: 14px 18px 14px 46px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-family: var(--font);
+  background: var(--surface);
+  transition: border-color 0.2s;
+  outline: none;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-icon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--text3);
+}
+
+/* ── PATIENT LIST ── */
+.patient-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.15s;
+  box-shadow: var(--shadow);
+}
+.patient-item:active { transform: scale(0.98); background: var(--surface2); }
+.patient-avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.patient-avatar.has-allergy { background: var(--danger); }
+.patient-info { flex: 1; }
+.patient-name { font-size: 17px; font-weight: 600; }
+.patient-meta { font-size: 13px; color: var(--text2); margin-top: 2px; }
+.patient-badges { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-family: var(--mono);
+}
+.badge-danger { background: var(--danger-light); color: var(--danger); }
+.badge-warning { background: var(--warning-light); color: var(--warning); }
+.badge-success { background: var(--accent-light); color: var(--accent-dark); }
+.badge-info { background: var(--info-light); color: var(--info); }
+.badge-gray { background: var(--surface2); color: var(--text2); }
+.chevron { color: var(--text3); font-size: 20px; }
+
+/* ── TABS ── */
+.tabs {
+  display: flex;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 18px;
+  gap: 2px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--accent-dark);
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+
+/* ── FARMACI TABLE ── */
+.farmaci-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.farmaci-table th {
+  background: var(--surface2);
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text2);
+  border-bottom: 2px solid var(--border);
+}
+.farmaci-table th:first-child { text-align: left; padding-left: 12px; }
+.farmaci-table td {
+  padding: 11px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.farmaci-table td:first-child { text-align: left; padding-left: 12px; font-weight: 500; }
+.farmaci-table tr:last-child td { border-bottom: none; }
+.farmaci-table tr:nth-child(even) { background: rgba(0,0,0,0.015); }
+.dose-val {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent-dark);
+}
+.dose-empty { color: var(--text3); font-size: 13px; }
+.farmaco-note { font-size: 11px; color: var(--text2); margin-top: 2px; font-style: italic; }
+.categoria-header {
+  background: var(--surface2) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3) !important;
+  padding: 8px 12px !important;
+  text-align: left !important;
+}
+
+/* ── SEZIONE CATEGORIA ── */
+.categoria-section { margin-bottom: 20px; }
+.categoria-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  padding: 8px 0 6px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 0;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:active { background: var(--accent-dark); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-outline {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+.btn-ghost {
+  background: var(--surface2);
+  color: var(--text);
+}
+.btn-full { width: 100%; }
+.btn-sm { padding: 8px 14px; font-size: 14px; border-radius: var(--radius-sm); }
+.btn-icon { padding: 10px; border-radius: 50%; }
+
+/* ── FORM ── */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 13px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-family: var(--font);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.2s;
+  outline: none;
+  -webkit-appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent);
+}
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+/* ── DOSE INPUT GRID ── */
+.dose-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+}
+.dose-cell { text-align: center; }
+.dose-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text3);
+  margin-bottom: 4px;
+}
+.dose-input {
+  width: 100%;
+  padding: 10px 6px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: center;
+  background: var(--surface);
+  color: var(--accent-dark);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.dose-input:focus { border-color: var(--accent); }
+
+/* ── FARMACO EDIT ROW ── */
+.farmaco-edit-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.farmaco-edit-card.nuovo { border-color: var(--accent); background: var(--accent-light); }
+.farmaco-delete-btn {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: var(--danger-light);
+  border: none;
+  color: var(--danger);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── CHECKLIST ── */
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.checklist-item.checked {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+.checklist-checkbox {
+  width: 28px; height: 28px;
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.checklist-item.checked .checklist-checkbox {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-size: 16px;
+}
+.checklist-text { flex: 1; }
+.checklist-farmaco { font-weight: 600; font-size: 15px; }
+.checklist-dose { font-size: 13px; color: var(--text2); font-family: var(--mono); margin-top: 2px; }
+
+/* ── PIN PAD ── */
+.pin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+.pin-sheet {
+  background: var(--surface);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 28px 24px 40px;
+  width: 100%;
+  max-width: 420px;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.pin-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+.pin-subtitle { font-size: 14px; color: var(--text2); text-align: center; margin-bottom: 24px; }
+.pin-select {
+  margin-bottom: 18px;
+}
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.pin-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  transition: all 0.2s;
+}
+.pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+.pin-dot.error { background: var(--danger); border-color: var(--danger); }
+.pin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  gap: 12px;
+  margin-bottom: 12px;
+  justify-content: center;
+}
+.pin-key {
+  width: 64px; height: 64px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  font-size: 22px;
+  font-weight: 600;
+  font-family: var(--mono);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.1s;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.pin-key:active { background: var(--accent-light); border-color: var(--accent); transform: scale(0.93); }
+.pin-key.delete { font-size: 18px; color: var(--danger); border-color: var(--danger-light); }
+.pin-key.confirm { background: var(--accent); color: white; border-color: var(--accent); font-size: 16px; }
+.pin-error { color: var(--danger); text-align: center; font-size: 14px; font-weight: 500; margin-top: 8px; }
+
+/* ── FIRMA CONFIRMED ── */
+.firma-confirmed {
+  background: var(--accent-light);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.firma-icon { font-size: 24px; }
+.firma-info .firma-nome { font-weight: 700; font-size: 16px; color: var(--accent-dark); }
+.firma-info .firma-ts { font-size: 12px; color: var(--text2); font-family: var(--mono); margin-top: 2px; }
+
+/* ── STORICO ── */
+.storico-item {
+  border-left: 3px solid var(--accent);
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.storico-date { font-size: 12px; font-family: var(--mono); color: var(--text3); }
+.storico-action { font-size: 14px; font-weight: 600; margin: 2px 0; }
+.storico-detail { font-size: 13px; color: var(--text2); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+  backdrop-filter: blur(3px);
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: fadeScale 0.2s ease;
+}
+@keyframes fadeScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal-title { font-size: 20px; font-weight: 700; margin-bottom: 18px; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--text);
+  color: white;
+  padding: 12px 22px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 2000;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--accent); }
+.toast.error { background: var(--danger); }
+
+/* ── SINGLE INSTANCE BLOCK ── */
+#single-instance-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  background: rgba(15, 23, 42, 0.82);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#single-instance-box {
+  width: min(420px, 100%);
+  background: white;
+  border-radius: 18px;
+  padding: 30px 24px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.24);
+}
+#single-instance-box h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  margin-bottom: 10px;
+}
+#single-instance-box p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text2);
+  margin-bottom: 10px;
+}
+#single-instance-box .hint {
+  font-size: 12px;
+  color: var(--text3);
+}
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text3);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 16px; }
+
+/* ── FAB ── */
+.fab {
+  position: fixed;
+  bottom: 28px; right: 24px;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(45,106,79,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50;
+  transition: all 0.2s;
+}
+.fab:active { transform: scale(0.93); background: var(--accent-dark); }
+
+/* ── DIVIDER ── */
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* ── INFO ROW ── */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-key { color: var(--text2); font-size: 13px; }
+.info-val { font-weight: 500; text-align: right; }
+
+/* ── VERSIONE BADGE ── */
+.versione-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--info-light);
+  color: var(--info);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+/* ── PROGRESS ── */
+.progress-bar {
+  height: 8px;
+  background: var(--surface2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* ── SECTION HEADER ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-title { font-size: 18px; font-weight: 700; }
+
+/* ── LOGO HEADER ── */
+.logo-header { background: var(--accent-dark); padding: 12px 24px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 18px; color: white; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.logo-header-img { height: 58px; width: auto; filter: brightness(0) invert(1); flex-shrink: 0; object-fit: contain; }
+.logo-header-divider { width: 1px; height: 38px; background: rgba(255,255,255,0.25); flex-shrink: 0; }
+.logo-header-text { text-align: center; }
+.logo-name { font-size: 18px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.2; }
+.logo-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.logo-op-line { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.95); margin-top: 4px; letter-spacing: 0.01em; }
+.logo-date-block { text-align: center; }
+.logo-date { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.75); text-transform: capitalize; line-height: 1.3; }
+.logo-time { font-size: 24px; font-weight: 300; letter-spacing: 1px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.header-logout { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); color: white; width: 40px; height: 40px; border-radius: 10px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; -webkit-tap-highlight-color: transparent; }
+.header-logout:active { background: rgba(255,255,255,0.3); }
+/* ── LOGIN OP GRID ── */
+.login-op-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.login-op-btn { padding: 11px 8px; border: 2px solid var(--border); background: var(--surface2); border-radius: 10px; font-family: var(--font); cursor: pointer; text-align: center; transition: all 0.15s; -webkit-tap-highlight-color: transparent; }
+.login-op-btn:hover, .login-op-btn:active { border-color: var(--accent); background: var(--accent-light); }
+.login-op-btn.selected { border-color: var(--accent); background: var(--accent-light); }
+.login-op-initials { display: block; font-size: 22px; font-weight: 800; color: var(--accent-dark); margin-bottom: 3px; }
+.login-op-name { display: block; font-size: 11px; color: var(--text2); line-height: 1.3; margin-top: 2px; }
+.login-op-role { display: block; font-size: 10px; color: var(--text3); margin-top: 1px; }
+.login-pin-label { font-size: 13px; color: var(--text2); font-weight: 500; margin: 14px 0 10px; text-align: center; }
+.login-pin-dots-wrap { display: flex; gap: 10px; justify-content: center; margin-bottom: 12px; }
+
+/* ── RESPONSIVE ── */
+@media (min-width: 640px) {
+  .content { max-width: 640px; margin: 0 auto; }
+  #screen-login .content { max-width: none; }
+}
+
+/* PREP CARD */
+.prep-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.prep-card.canceled { background: var(--canceled-light); border-color: var(--canceled); opacity: 0.75; }
+.prep-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.prep-periodo { font-weight: 700; font-size: 16px; }
+.prep-data { font-size: 12px; color: var(--text2); margin-top: 2px; font-family: var(--mono); }
+.prep-firme { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+.prep-consegna { background: var(--purple-light); border: 1px solid var(--purple); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 13px; }
+.prep-consegna-label { font-weight: 700; color: var(--purple); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.prep-actions { display: flex; gap: 8px; margin-top: 10px; }
+.storico-item.canceled { border-left-color: var(--canceled); background: var(--canceled-light); opacity:0.8; }
+.storico-item.prep-entry { border-left-color: var(--info); }
+.storico-item.consegna-entry { border-left-color: var(--purple); }
+.storico-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.badge-canceled { background: var(--canceled-light); color: var(--canceled); text-decoration: line-through; }
+.badge-purple { background: var(--purple-light); color: var(--purple); }
+.operatore-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; }
+.op-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.op-info { flex: 1; }
+.op-nome { font-weight: 600; }
+.op-ruolo { font-size: 12px; color: var(--text2); }
+.op-delete { background: var(--danger-light); border: none; color: var(--danger); width: 34px; height: 34px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 20px; backdrop-filter: blur(3px); }
+.modal { background: var(--surface); border-radius: var(--radius); padding: 24px; width: 100%; max-width: 500px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: fadeScale 0.2s ease; }
+.modal-title { font-size: 20px; font-weight: 700; margin-bottom: 18px; }
+.modal-close { float: right; background: var(--surface2); border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.badge-stato-sospeso{background:#ff9800;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;margin-right:3px}.badge-stato-dimesso{background:#9e9e9e;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;margin-right:3px}.farmaco-sospeso{text-decoration:line-through;color:#aaa}.filtro-stato{font-size:13px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#333;margin-left:8px;cursor:pointer}.prep-note-box{background:#fffde7;border-left:3px solid #ffd54f;padding:8px 12px;margin:8px 0;font-size:13px;border-radius:0 6px 6px 0}
+
+/* -- LOGIN PIN DOTS -- */
+.pin-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: transparent;
+  transition: all 0.15s;
+}
+.pin-dot.filled { background: var(--accent); border-color: var(--accent-dark); }
+/* lock overlay override */
+#lock-overlay .pin-dot { border-color: rgba(255,255,255,0.4); background: transparent; }
+#lock-overlay .pin-dot.filled { background: white; border-color: white; }
+/* -- LOGIN PIN GRID -- */
+.login-pin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 68px);
+  grid-template-rows: repeat(4, 68px);
+  gap: 10px;
+  justify-content: center;
+  margin: 0 auto;
+}
+.login-pin-btn {
+  width: 68px; height: 68px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-dark);
+  background: var(--accent);
+  color: white;
+  font-size: 24px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font);
+  box-shadow: 0 3px 10px rgba(45,106,79,0.25);
+}
+.login-pin-btn:active { background: var(--accent-dark); transform: scale(0.93); box-shadow: none; }
+.login-pin-btn.empty { background: transparent; border-color: transparent; cursor: default; pointer-events: none; box-shadow: none; }
+.login-pin-btn.action { font-size: 20px; font-weight: 500; }
+.login-pin-btn.del { background: var(--surface2); border-color: var(--border); color: var(--text2); box-shadow: none; }
+.login-pin-btn.del:active { background: var(--border); transform: scale(0.93); }
+.login-pin-btn.confirm-ready { background: var(--accent-dark); border-color: var(--accent-dark); }
+/* lock overlay PIN override */
+#lock-overlay .login-pin-btn { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.45); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+#lock-overlay .login-pin-btn:active { background: rgba(255,255,255,0.30); border-color: rgba(255,255,255,0.75); transform: scale(0.93); box-shadow: none; }
+#lock-overlay .login-pin-btn.del { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); box-shadow: none; }
+#lock-overlay .login-pin-btn.empty { background: transparent; border-color: transparent; box-shadow: none; }
+/* -- LOGOUT BUTTON -- */
+.foto-thumb {
+  width: 56px; height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid var(--primary);
+  cursor: pointer;
+  display: block;
+}
+.edit-foto-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.edit-foto-remove {
+  position: absolute;
+  top: -7px; right: -7px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1;
+}
+.header-user {
+  font-size: 12px; font-weight: 700;
+  background: rgba(255,255,255,0.95);
+  border-radius: 20px; padding: 5px 12px;
+  color: var(--accent-dark);
+  cursor: pointer;
+  border: none;
+  letter-spacing: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.3;
+}
+</style>
+</head>
+<body>
+<!-- ════ SINGLE INSTANCE OVERLAY ════ -->
+<div id="single-instance-overlay">
+  <div id="single-instance-box">
+    <div style="font-size:44px;margin-bottom:12px;">🚫</div>
+    <h2>Applicazione già aperta</h2>
+    <p>Questa finestra è stata bloccata perché Dosettes risulta già attiva in un'altra finestra dello stesso browser.</p>
+    <p class="hint">Chiudi l'altra finestra oppure attendi alcuni secondi e riapri l'app.</p>
+  </div>
+</div>
+
+<!-- ════ DEVICE AUTH OVERLAY ════ -->
+<div id="device-auth-overlay" style="display:flex;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.88);flex-direction:column;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:32px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+    <div style="font-size:42px;margin-bottom:12px;">🔒</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:#111;">Dispositivo non riconosciuto</div>
+    <div style="font-size:14px;color:#666;margin-bottom:24px;">Inserisci il codice amministratore per autorizzare questo dispositivo.</div>
+    <div id="da-step1">
+      <input id="da-code" type="password" placeholder="Codice amministratore" style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:8px;">
+      <div id="da-error" style="color:#e53935;font-size:13px;margin-bottom:8px;min-height:18px;"></div>
+      <button onclick="daVerificaCodice()" style="width:100%;padding:12px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Verifica codice</button>
+    </div>
+    <div id="da-step2" style="display:none;">
+      <div style="font-size:14px;color:#333;margin-bottom:16px;">✅ Codice corretto. Dai un nome a questo dispositivo:</div>
+      <input id="da-nome" type="text" placeholder="Es: iPad farmacia, PC Daniele…" style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:8px;">
+      <div id="da-error2" style="color:#e53935;font-size:13px;margin-bottom:8px;min-height:18px;"></div>
+      <button onclick="daRegistraDispositivo()" style="width:100%;padding:12px;background:#2e7d32;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Autorizza dispositivo</button>
+    </div>
+  </div>
+</div>
+<div id="app">
+
+<!-- ════════════════════════════════════════════
+     SCREEN 1: HOME / LISTA PAZIENTI
+════════════════════════════════════════════ -->
+
+<!-- ===== SCREEN 0: LOGIN ===== -->
+<div id="screen-login" class="screen active">
+  <div class="logo-header" style="position:relative">
+    <img class="logo-header-img" src="logo.png" alt="Farmacia Ascona">
+    <div class="logo-header-divider"></div>
+    <div class="logo-header-text">
+      <div class="logo-name">Dosettes V2</div>
+      <div class="logo-sub">Farmacia Ascona</div>
+    </div>
+    <div class="logo-header-divider"></div>
+    <div class="logo-date-block">
+      <div class="logo-date" id="login-hdr-date">—</div>
+      <div class="logo-time" id="login-hdr-time">—</div>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:20px 14px 40px;">
+    <div style="max-width:580px;margin-left:auto;margin-right:auto;">
+    <div class="card" id="login-op-card" style="margin-bottom:14px">
+      <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:12px">&#128100; Chi sei?</div>
+      <div class="login-op-grid" id="login-op-grid"></div>
+    </div>
+    <div id="login-pin-section" style="display:none">
+      <div class="card" style="max-width:320px;margin-left:auto;margin-right:auto">
+        <button type="button" onclick="loginChangeOperatore()" style="width:100%;padding:10px 12px;margin-bottom:12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--accent-dark);font-family:inherit;font-weight:700;cursor:pointer">Cambia operatore</button>
+        <div class="login-pin-label" id="login-pin-label">PIN</div>
+        <div class="login-pin-dots-wrap" id="login-pin-dots">
+          <div class="pin-dot" id="ld0"></div>
+          <div class="pin-dot" id="ld1"></div>
+          <div class="pin-dot" id="ld2"></div>
+          <div class="pin-dot" id="ld3"></div>
+        </div>
+        <div id="login-error" style="color:var(--danger);font-size:13px;text-align:center;min-height:18px;font-weight:500;margin-bottom:8px"></div>
+        <div class="login-pin-grid">
+          <button class="login-pin-btn" onclick="loginPinDigit('1')">1</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('2')">2</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('3')">3</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('4')">4</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('5')">5</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('6')">6</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('7')">7</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('8')">8</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('9')">9</button>
+          <button class="login-pin-btn del" onclick="loginPinClear()">&#9003;</button>
+          <button class="login-pin-btn" onclick="loginPinDigit('0')">0</button>
+          <button class="login-pin-btn empty" id="login-confirm-btn"></button>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+  <div style="height:40px"></div>
+</div>
+
+<div id="screen-home" class="screen">
+  <div class="logo-header" style="position:relative">
+    <img class="logo-header-img" src="logo.png" alt="Farmacia Ascona">
+    <div class="logo-header-divider"></div>
+    <div class="logo-header-text">
+      <div class="logo-name">Dosettes V2</div>
+      <div class="logo-sub">Farmacia Ascona</div>
+      <div class="logo-op-line" id="home-op-line" style="display:none"></div>
+    </div>
+    <div class="logo-header-divider"></div>
+    <div class="logo-date-block">
+      <div class="logo-date" id="header-date">—</div>
+      <div class="logo-time" id="header-time">—</div>
+    </div>
+    <button class="header-logout" id="home-logout-btn" onclick="doLogoutDosettes()" title="Esci" style="display:none">&#9211;</button>
+  </div>
+  <div class="content">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" id="search-input" placeholder="Cerca paziente..." autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div id="patient-search-results"></div>
+    <div class="section-header">
+      <span class="section-title">Pazienti</span>
+      <select id="filtro-stato" class="filtro-stato" onchange="renderHome()">
+        <option value="tutti">Tutti</option>
+        <option value="attivo">Attivi</option>
+        <option value="sospeso">Sospesi</option>
+        <option value="dimesso">Dimessi</option>
+      </select>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="count-badge" class="badge badge-gray">0</span>
+        <button class="btn btn-sm btn-ghost" onclick="showScreen('screen-storico');renderStoricoGlobale()" style="font-size:13px">📋 Storico</button>
+        <button class="btn btn-sm btn-ghost" onclick="showScreen('screen-operatori')" style="font-size:13px">⚙️ Operatori</button>
+      
+        <span class="header-user" id="header-user-badge" style="display:none">&mdash;</span></div>
+    </div>
+    <div id="workflow-queue"></div>
+  </div>
+  <button class="fab" onclick="showScreen('screen-nuovo-paziente')">+</button>
+</div>
+
+<!-- ===== SCREEN TERMINATA ===== -->
+<div id="screen-terminata" class="screen">
+  <div class="logo-header">
+    <img class="logo-header-img" src="logo.png" alt="Farmacia Ascona">
+    <div class="logo-header-divider"></div>
+    <div class="logo-header-text">
+      <div class="logo-name">Dosettes V2</div>
+      <div class="logo-sub">Farmacia Ascona</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;gap:20px;text-align:center">
+    <div style="font-size:56px">&#128075;</div>
+    <div style="font-size:22px;font-weight:700;color:var(--text)">Sessione terminata</div>
+    <div style="font-size:14px;color:var(--text2);max-width:300px">Premi "Chiudi scheda" per chiudere questa finestra, oppure avvia una nuova sessione.</div>
+    <div id="terminata-close-msg" style="display:none;font-size:13px;color:var(--text3);margin-top:-8px">Puoi chiudere manualmente questa scheda.</div>
+    <button class="btn btn-primary" style="min-width:180px;font-size:15px;padding:14px 24px" onclick="doCloseWindowDosettes()">&#9211; Chiudi scheda</button>
+    <button class="btn btn-ghost" style="min-width:180px;font-size:14px;padding:12px 24px" onclick="doNuovaSessioneDosettes()">&#8635; Nuova sessione</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN STORICO DOSETTES
+════════════════════════════════════════════ -->
+<div id="screen-storico" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <span class="header-title">Storico Dosettes</span>
+    <span id="storico-count" class="badge badge-gray" style="margin-left:auto;margin-right:8px">0</span>
+  </div>
+  <div class="content">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" id="storico-search" placeholder="Cerca paziente, operatore, periodo..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="(function(v){clearTimeout(window._stTs);window._stTs=setTimeout(function(){filterStorico(v);},200);})(this.value)">
+    </div>
+    <div id="storico-list"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 2: SCHEDA PAZIENTE
+════════════════════════════════════════════ -->
+<div id="screen-paziente" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <div style="flex:1;text-align:center">
+      <div class="header-title" id="pz-header-nome"></div>
+      <div class="header-subtitle" id="pz-header-meta"></div>
+    </div>
+    <button class="header-action" onclick="stampaTerapia()">🖨 Stampa</button>
+  </div>
+  <div id="allergie-bar"></div>
+  <div class="content">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('terapia', this)">Terapia</button>
+      <button class="tab-btn" onclick="switchTab('preparazione', this)">Preparazione</button>
+      <button class="tab-btn" onclick="switchTab('anagrafica', this)">Info</button>
+      <button class="tab-btn" onclick="switchTab('storico', this)">Storico</button>
+    </div>
+
+    <!-- TAB: TERAPIA -->
+    <div id="tab-terapia">
+      <div class="section-header">
+        <div>
+          <span class="section-title">Terapia attiva</span>
+          <span id="versione-label" class="versione-badge" style="margin-left:8px">v1</span>
+        </div>
+        <button class="btn btn-sm btn-primary" id="btn-modifica-terapia" onclick="showModificaTerapia()">✏️ Modifica</button>
+      </div>
+      <div id="terapia-foto-bar"></div>
+      <div class="card" style="padding:0; overflow:hidden;">
+        <table class="farmaci-table" id="terapia-table"></table>
+      </div>
+    </div>
+
+    <!-- TAB: PREPARAZIONE -->
+    <div id="tab-preparazione" style="display:none">
+      <div class="section-header">
+        <span class="section-title">Nuova preparazione</span>
+      </div>
+      <div class="card">
+        <div class="form-group">
+          <label class="form-label">N° dosette <span style="font-weight:400;color:var(--text2)">(identificativo scatola)</span></label>
+          <select class="form-select" id="prep-numDosette">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Periodo coperto</label>
+          <div class="form-row">
+            <input type="date" class="form-input" id="prep-dal" oninput="aggiornaDatFine()">
+            <input type="date" class="form-input" id="prep-al">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="avviaChecklist()">▶ Avvia Checklist</button>
+      </div>
+
+      <div class="section-header" style="margin-top:8px">
+        <span class="section-title">Preparazioni recenti</span>
+      </div>
+      <div id="prep-list"></div>
+    </div>
+
+    <!-- TAB: ANAGRAFICA -->
+    <div id="tab-anagrafica" style="display:none">
+      <div id="anagrafica-modifica-bar" style="display:none;padding:0 0 12px 0">
+        <button class="btn btn-primary btn-full" onclick="showModificaAnagrafica()">
+          &#9998; Modifica anagrafica
+        </button>
+      </div>
+      <div class="card" id="anagrafica-content"></div>
+    </div>
+
+    <!-- TAB: STORICO -->
+    <div id="tab-storico" style="display:none">
+      <div id="storico-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 3: CHECKLIST PREPARAZIONE
+════════════════════════════════════════════ -->
+<div id="screen-checklist" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-paziente')">←</button>
+    <div style="flex:1">
+      <div class="header-title">Checklist preparazione</div>
+      <div class="header-subtitle" id="checklist-subtitle"></div>
+    </div>
+  </div>
+  <div id="allergie-bar-prep"></div>
+  <div class="content">
+    <div class="card" style="background:var(--info-light); border-color:var(--info)">
+      <div style="font-size:13px; color:var(--info); font-weight:600">
+        ✅ Spunta ogni farmaco man mano che riempi la dosette
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title">Farmaci fissi</span>
+      <span id="check-progress" class="badge badge-info">0/0</span>
+    </div>
+    <div id="checklist-totali"></div>
+    <div id="checklist-fissi"></div>
+
+    <div id="checklist-autogestiti-section" style="display:none">
+      <div class="section-header" style="margin-top:16px">
+        <span class="section-title">Autogestiti</span>
+      </div>
+      <div id="checklist-autogestiti"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div style="text-align:center; font-size:13px; color:var(--text2); margin-top:6px" id="progress-label">0 di 0 completati</div>
+
+    <div style="margin-top:24px">
+      <div class="card-title">OPERATORE STEP</div>
+      <div id="firma-riempimento-wrap">
+        <button class="btn btn-primary btn-full" onclick="confermaFirmaRiempimento()">✍️ Firma come Riempitore</button>
+      </div>
+
+      <div class="card-title" style="margin-top:18px">CONTROLLO</div>
+      <div id="firma-controllo-wrap">
+        <div style="color:var(--text3); font-size:14px; text-align:center; padding:12px">
+          ⏳ In attesa della firma di riempimento
+        </div>
+      </div>
+    </div>
+
+    <div id="btn-completa-prep" style="display:none; margin-top:20px">
+      <button id="btn-completa-prep-action" class="btn btn-primary btn-full" style="font-size:18px; padding:18px" onclick="completaPreparazione()">
+        💾 Salva preparazione
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-step-complete" class="screen">
+  <div class="content" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px">
+    <div class="card" style="max-width:520px;width:100%;text-align:center;padding:28px 24px">
+      <div style="font-size:56px;margin-bottom:12px">✅</div>
+      <div style="font-size:24px;font-weight:800;color:var(--accent-dark);margin-bottom:10px">Salvataggio completato</div>
+      <div id="step-complete-message" style="font-size:15px;color:var(--text2);margin-bottom:18px">Operazione registrata correttamente.</div>
+      <div style="font-size:13px;color:var(--text3)">Sessione in chiusura…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 4: MODIFICA TERAPIA
+════════════════════════════════════════════ -->
+<div id="screen-modifica-terapia" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="confermaEsciModificaTerapia()">←</button>
+    <div class="header-title">Modifica terapia</div>
+  </div>
+  <div class="content">
+    <div class="card" style="background:var(--warning-light); border-color:var(--warning)">
+      <div style="font-size:13px; color:var(--warning); font-weight:600">
+        ⚠️ Ogni salvataggio crea una nuova versione con traccia completa
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Motivo modifica *</label>
+      <input type="text" class="form-input" id="motivo-modifica" placeholder="es. Riduzione Furosemide per miglioramento edemi">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Medico</label>
+        <input type="text" class="form-input" id="edit-medico" placeholder="es. Varini">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Documento</label>
+        <select class="form-select" id="edit-documento">
+          <option>Ricetta</option>
+          <option>Telefono + ricetta</option>
+          <option>Telefono</option>
+          <option>Lettera medica</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-header">
+      <span class="section-title">Farmaci fissi</span>
+      <button class="btn btn-sm btn-outline" onclick="aggiungiFarmaco('fisso')">+ Aggiungi</button>
+    </div>
+    <div id="edit-fissi"></div>
+
+    <div class="section-header" style="margin-top:8px">
+      <span class="section-title">Autogestiti</span>
+      <button class="btn btn-sm btn-outline" onclick="aggiungiFarmaco('autogestito')">+ Aggiungi</button>
+    </div>
+    <div id="edit-autogestiti"></div>
+
+    <div class="section-header" style="margin-top:8px">
+      <span class="section-title">Riserva</span>
+      <button class="btn btn-sm btn-outline" onclick="aggiungiFarmaco('riserva')">+ Aggiungi</button>
+    </div>
+    <div id="edit-riserva"></div>
+
+    <div class="divider"></div>
+    <div class="section-header" style="margin-top:0">
+      <span class="section-title">📷 Foto ricetta / schema</span>
+      <span style="font-size:12px;color:var(--text2)">max 2</span>
+    </div>
+    <div id="edit-foto-container"></div>
+    <input type="file" id="edit-foto-input" accept="image/*" capture="environment" style="display:none" onchange="aggiungiEditFoto(this)">
+
+    <div style="margin-top:24px; padding-bottom:40px">
+      <button class="btn btn-primary btn-full" style="font-size:17px; padding:16px" onclick="salvaNuovaVersione()">
+        💾 Salva nuova versione terapia
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 5: NUOVO PAZIENTE
+════════════════════════════════════════════ -->
+<div id="screen-nuovo-paziente" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <div class="header-title">Nuovo paziente</div>
+  </div>
+  <div class="content">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Cognome *</label>
+        <input type="text" class="form-input" id="new-cognome" autocapitalize="words">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome *</label>
+        <input type="text" class="form-input" id="new-nome" autocapitalize="words">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data di nascita *</label>
+      <input type="date" class="form-input" id="new-ddn">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Medico curante</label>
+      <input type="text" class="form-input" id="new-medico">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Giorno ritiro</label>
+        <select class="form-select" id="new-giorno">
+          <option>Lunedì</option><option>Martedì</option><option>Mercoledì</option>
+          <option>Giovedì</option><option>Venerdì</option><option>Sabato</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Consegna</label>
+        <select class="form-select" id="new-consegna">
+          <option>Ritiro in farmacia</option>
+          <option>Struttura esterna</option>
+          <option>Consegna a domicilio</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">⚠️ Allergie / Avvisi</label>
+      <input type="text" class="form-input" id="new-allergie" placeholder="es. Propofol, Penicillina...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Note cliniche</label>
+      <textarea class="form-textarea" id="new-note" placeholder="es. Diabetico, Dialisi, insufficienza renale..."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Telefono</label>
+        <input type="tel" class="form-input" id="new-telefono" placeholder="es. 091 123 45 67" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Indirizzo</label>
+        <input type="text" class="form-input" id="new-indirizzo" placeholder="Via e numero civico, città" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Inizio terapia</label>
+        <input type="text" class="form-input" id="new-giornoInizio" placeholder="es. lunedì mattina">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Durata standard (giorni)</label>
+        <input type="number" class="form-input" id="new-durata" min="1" max="31" value="7" placeholder="7">
+      </div>
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="new-curatele" style="width:20px;height:20px;flex-shrink:0">
+      <label for="new-curatele" class="form-label" style="margin:0;cursor:pointer">Sotto curatela</label>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Stato</label>
+      <select class="form-input" id="new-stato">
+        <option value="attivo">Attivo</option>
+        <option value="sospeso">Sospeso</option>
+        <option value="dimesso">Dimesso</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-full" style="margin-top:8px; padding:16px; font-size:17px" onclick="salvaNuovoPaziente()">
+      ✅ Crea paziente
+    </button>
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN 6: STAMPA / PDF PREVIEW
+════════════════════════════════════════════ -->
+<div id="screen-stampa" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-paziente')">←</button>
+    <div class="header-title">Anteprima stampa</div>
+    <button class="header-action" onclick="window.print()">🖨 Stampa</button>
+  </div>
+  <div class="content" id="stampa-content"></div>
+</div>
+
+
+<!-- ══ SCREEN 7: GESTIONE OPERATORI ══ -->
+<div id="screen-operatori" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <div class="header-title">Gestione Operatori</div>
+  </div>
+  <div class="content">
+    <div class="card" style="background:var(--warning-light);border-color:var(--warning);padding:12px 16px;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--warning);font-weight:600">🔐 Aggiungere o rimuovere operatori richiede il PIN del titolare</div>
+    </div>
+    <div class="section-header">
+      <span class="section-title">Operatori attivi</span>
+      <button class="btn btn-sm btn-primary" onclick="showModalNuovoOperatore()">+ Aggiungi</button>
+    </div>
+    <div id="operatori-list"></div>
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL OVERLAY ══ -->
+<div id="modal-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)chiudiModal()">
+  <div id="modal-content" class="modal"></div>
+</div>
+
+</div><!-- /#app -->
+
+<!-- ════════════════════════════════════════════
+     PIN OVERLAY
+════════════════════════════════════════════ -->
+<div id="pin-overlay" class="pin-overlay" style="display:none">
+  <div class="pin-sheet">
+    <div class="pin-title">🔐 Firma</div>
+    <div class="pin-subtitle" id="pin-subtitle">Seleziona il tuo nome e inserisci il PIN</div>
+    <div class="pin-select">
+      <select class="form-select" id="pin-operatore">
+        <option value="">— Seleziona operatore —</option>
+      </select>
+    </div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key delete" onclick="pinKey('del')">⌫</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key confirm" onclick="pinKey('ok')">OK</button>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+    <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="chiudiPin()">Annulla</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+// ════════════════════════════════════════════
+// UTILITY — definita per prima perché usata ovunque
+// ════════════════════════════════════════════
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escJs(s) {
+  return String(s == null ? '' : s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
+// ════════════════════════════════════════════
+// FIREBASE — CONFIG E INIZIALIZZAZIONE
+// ════════════════════════════════════════════
+//
+// STEP 1: copiare i valori da Firebase Console → Impostazioni progetto → App Web
+//         poi impostare FIREBASE_ENABLED = true
+//
+var FIREBASE_ENABLED = true;
+
+var firebaseConfig = {
+  apiKey:            'AIzaSyD9McwYWAkmF7MY3twDfCu0ECU3WujYArc',
+  authDomain:        'dosettes-farmacia.firebaseapp.com',
+  projectId:         'dosettes-farmacia',
+  storageBucket:     'dosettes-farmacia.firebasestorage.app',
+  messagingSenderId: '628957359401',
+  appId:             '1:628957359401:web:7061c0a375b82288e45b38'
+};
+
+var firestoreDB = null;
+var singleInstanceGuard = null;
+var _authInitialized = false;
+
+function createSingleInstanceGuard(appKey) {
+  var LOCK_KEY = 'fa_single_instance:' + appKey;
+  var instanceId = 'inst_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  var HEARTBEAT_MS = 4000;
+  var STALE_MS = 15000;
+  var heartbeatTimer = null;
+  var storageListener = null;
+
+  function now() { return Date.now(); }
+  function readLock() {
+    try {
+      return JSON.parse(localStorage.getItem(LOCK_KEY) || 'null');
+    } catch (e) {
+      return null;
+    }
+  }
+  function writeLock() {
+    localStorage.setItem(LOCK_KEY, JSON.stringify({
+      instanceId: instanceId,
+      appKey: appKey,
+      updatedAt: now(),
+      path: location.pathname
+    }));
+  }
+  function ownsLock(lock) {
+    return !!lock && lock.instanceId === instanceId;
+  }
+  function isFresh(lock) {
+    return !!lock && (now() - Number(lock.updatedAt || 0) < STALE_MS);
+  }
+  function releaseLock() {
+    var current = readLock();
+    if (ownsLock(current)) localStorage.removeItem(LOCK_KEY);
+  }
+  function showBlockedUi() {
+    var overlay = document.getElementById('single-instance-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    var app = document.getElementById('app');
+    if (app) app.style.display = 'none';
+    var deviceOverlay = document.getElementById('device-auth-overlay');
+    if (deviceOverlay) deviceOverlay.style.display = 'none';
+    var lockOverlay = document.getElementById('lock-overlay');
+    if (lockOverlay) lockOverlay.style.display = 'none';
+  }
+
+  return {
+    start: function() {
+      var existing = readLock();
+      if (existing && !ownsLock(existing) && isFresh(existing)) {
+        showBlockedUi();
+        return false;
+      }
+
+      writeLock();
+
+      storageListener = function(e) {
+        if (e.key !== LOCK_KEY) return;
+        var current = readLock();
+        if (current && !ownsLock(current) && isFresh(current)) {
+          clearInterval(heartbeatTimer);
+          showBlockedUi();
+        }
+      };
+      window.addEventListener('storage', storageListener);
+
+      heartbeatTimer = setInterval(function() {
+        var current = readLock();
+        if (!current || ownsLock(current) || !isFresh(current)) {
+          writeLock();
+        }
+      }, HEARTBEAT_MS);
+
+      window.addEventListener('pagehide', releaseLock);
+      window.addEventListener('beforeunload', releaseLock);
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          var current = readLock();
+          if (!current || !isFresh(current) || ownsLock(current)) writeLock();
+        }
+      });
+
+      return true;
+    }
+  };
+}
+
+(function(){
+  singleInstanceGuard = createSingleInstanceGuard('dosettes');
+  if (!singleInstanceGuard.start()) return;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    firestoreDB = firebase.firestore();
+    // ── DEVICE AUTH ──────────────────────────
+    (function(){
+      var DEVICE_KEY='fa_device_id';
+      function getOrCreateDeviceId(){var id=localStorage.getItem(DEVICE_KEY);if(!id){id='dev_'+Date.now().toString(36)+Math.random().toString(36).substr(2,9);localStorage.setItem(DEVICE_KEY,id);}return id;}
+      async function sha256(s){var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
+      window._daDeviceId=getOrCreateDeviceId();
+      firebase.auth().onAuthStateChanged(async function(user){
+        if(!user) return;
+        var db=firebase.firestore();
+        try{var doc=await db.collection('dispositivi').doc(window._daDeviceId).get();if(doc.exists&&doc.data().autorizzato===true){db.collection('dispositivi').doc(window._daDeviceId).update({ultimoAccesso:new Date()});document.getElementById('device-auth-overlay').style.display='none';return;}}catch(e){console.warn('Device check:',e);}
+      });
+      window.daVerificaCodice=async function(){var code=(document.getElementById('da-code').value||'').trim();if(!code)return;var hash=await sha256(code);if(hash!=='81a7ad73c35f4ef750d4471a0be8482de72b0d8327b4337573d712970131b8c4'){document.getElementById('da-error').textContent='Codice non valido.';return;}document.getElementById('da-step1').style.display='none';document.getElementById('da-step2').style.display='block';};
+      window.daRegistraDispositivo=async function(){var nome=(document.getElementById('da-nome').value||'').trim();if(!nome){document.getElementById('da-error2').textContent='Inserisci un nome.';return;}try{var db=firebase.firestore();await db.collection('dispositivi').doc(window._daDeviceId).set({nome:nome,autorizzato:false,richiesta:true,primoAccesso:new Date(),ultimoAccesso:new Date(),userAgent:navigator.userAgent},{merge:true});document.getElementById('da-error2').style.color='#2e7d32';document.getElementById('da-error2').textContent='Richiesta inviata. Autorizza il dispositivo dalla console admin su un dispositivo già abilitato.';}catch(e){document.getElementById('da-error2').textContent='Errore di salvataggio. Riprova.';}};
+      document.addEventListener('keydown',function(e){if(e.key!=='Enter')return;if(document.getElementById('da-step2').style.display==='block')daRegistraDispositivo();else daVerificaCodice();});
+    })();
+    firebase.auth().onAuthStateChanged(function(user) {
+      if (!_authInitialized) {
+        _authInitialized = true;
+        if (!user) {
+          firebase.auth().signInAnonymously().catch(function(e){ console.warn('Firebase auth anonima fallita:', e.code); });
+          return;
+        }
+      }
+      loadData().then(function(){
+        initLoginScreen();
+        if (user && !user.isAnonymous) loginOperatoreDaAuth(user);
+      }).catch(function(){
+        initLoginScreen();
+      });
+    });
+  } catch(e) {
+    console.error('Errore init Firebase:', e.message);
+    FIREBASE_ENABLED = false;
+    initLoginScreen();
+  }
+})();
+
+// ════════════════════════════════════════════
+// UTILITY — SHA-256 per PIN (Web Crypto API nativa)
+// Mai loggare pinBuffer o hash in console
+// ════════════════════════════════════════════
+async function sha256(message) {
+  var msgBuffer = new TextEncoder().encode(message);
+  var hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  var hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(function(b){ return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+// ════════════════════════════════════════════
+// FIREBASE HELPERS — sync in background (fire-and-forget)
+// ════════════════════════════════════════════
+function sincronizzaPaziente(p) {
+  if (!FIREBASE_ENABLED || !firestoreDB) return Promise.resolve();
+  return firestoreDB.collection('pazienti').doc(p.id).set(p)
+    .catch(function(e){
+      console.error('Sync paziente fallita:', e.code);
+      showToast('Errore salvataggio — riprova o ricarica la pagina', 'error');
+      throw e;
+    });
+}
+
+function sincronizzaStorico(chiave, snapshot) {
+  if (!FIREBASE_ENABLED || !firestoreDB) return Promise.resolve();
+  return firestoreDB.collection('terapie_storiche').doc(chiave).set(snapshot)
+    .catch(function(e){
+      console.error('Sync storico fallita:', e.code);
+      showToast('Errore salvataggio storico — riprova o ricarica la pagina', 'error');
+      throw e;
+    });
+}
+
+// ════════════════════════════════════════════
+// CARICAMENTO DATI DA FIRESTORE
+// Chiamato all'avvio — popola DB, OPERATORI, TERAPIE_STORICHE
+// ════════════════════════════════════════════
+function loadData() {
+  if (!FIREBASE_ENABLED || !firestoreDB) {
+    return Promise.resolve(); // usa dati hardcoded
+  }
+  var list = document.getElementById('patient-list');
+  if (list) list.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Caricamento dati...</p></div>';
+
+  var _demoPazienti = DB.pazienti.slice();
+  var loadPazienti = firestoreDB.collection('pazienti').get().then(function(snapshot) {
+    var loaded = [];
+    snapshot.forEach(function(doc){ loaded.push(doc.data()); });
+    // Firestore e' la fonte di verita': usa sempre i dati remoti, anche se la lista e' vuota.
+    // NON usare il fallback hardcoded se la lettura Firestore ha avuto successo.
+    DB.pazienti = loaded;
+  }).catch(function(){ DB.pazienti = _demoPazienti; });
+
+  var _user = firebase.auth().currentUser;
+  var _colOperatori = (_user && !_user.isAnonymous) ? 'operatori' : 'operatori_pubblici';
+  var loadOperatori = firestoreDB.collection(_colOperatori).get().then(function(snapshot) {
+    var loaded = [];
+    snapshot.forEach(function(doc){ loaded.push(doc.data()); });
+    OPERATORI = loaded;
+  }).catch(function(){ OPERATORI = []; });
+
+  var loadStorico = firestoreDB.collection('terapie_storiche').get().then(function(snapshot) {
+    TERAPIE_STORICHE = {};
+    snapshot.forEach(function(doc){ TERAPIE_STORICHE[doc.id] = doc.data(); });
+  }).catch(function(e){ console.warn('Storico non caricato (accesso anonimo):', e.code); });
+
+  return Promise.all([loadPazienti, loadOperatori, loadStorico])
+    .catch(function(e){
+      console.error('Errore caricamento Firestore:', e.code);
+      showToast('Errore connessione database — dati locali in uso', 'error');
+    });
+}
+
+// ════════════════════════════════════════════
+// MIGRAZIONE — da DB hardcoded a Firestore
+// Eseguire UNA SOLA VOLTA dalla console browser: migraDB()
+// PREREQUISITO: FIREBASE_ENABLED = true, Firestore in modalità test
+// ════════════════════════════════════════════
+async function migraDB() {
+  if (!FIREBASE_ENABLED || !firestoreDB) { console.error('Firebase non abilitato'); return; }
+  console.log('=== INIZIO MIGRAZIONE DOSETTES-FARMACIA ===');
+
+  // 1. Pazienti
+  for (var i = 0; i < DB.pazienti.length; i++) {
+    var p = DB.pazienti[i];
+    await firestoreDB.collection('pazienti').doc(p.id).set(p);
+    console.log('Paziente migrato:', p.cognome, p.nome);
+  }
+
+  // 2. Terapie storiche
+  var chiavi = Object.keys(TERAPIE_STORICHE);
+  for (var j = 0; j < chiavi.length; j++) {
+    await firestoreDB.collection('terapie_storiche').doc(chiavi[j]).set(TERAPIE_STORICHE[chiavi[j]]);
+    console.log('Storico migrato:', chiavi[j]);
+  }
+
+  console.warn('Migrazione operatori disabilitata: usare Admin/index.html per creare account Firebase Auth e documenti operatori.');
+
+  console.log('=== MIGRAZIONE COMPLETATA ===');
+  console.log('Passi successivi:');
+  console.log('1. Verificare i dati su Firebase Console');
+  console.log('2. Rimuovere i dati hardcoded da DB e OPERATORI nel codice');
+  console.log('3. Impostare FIREBASE_ENABLED = true (se non già fatto)');
+}
+
+// ════════════════════════════════════════════
+// DATI OPERATORI
+// ════════════════════════════════════════════
+function _gapMigra(p){if(!p.stato)p.stato='attivo';if(p.giornoInizio===undefined)p.giornoInizio='';if(p.numeroDosette===undefined)p.numeroDosette='';if(p.curatele===undefined)p.curatele=false;if(!p.telefono)p.telefono='';if(!p.indirizzo)p.indirizzo='';var t=p.terapia||{};(t.fissi||[]).forEach(function(f){if(f.sospeso===undefined)f.sospeso=false;});(t.autogestiti||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(t.riserva||[]).forEach(function(f){if(!f.prescrittore)f.prescrittore='';});(p.preparazioni||[]).forEach(function(pr){if(!pr.note)pr.note='';if(!pr.opPrep)pr.opPrep='';if(!Array.isArray(pr.checklistCompletata))pr.checklistCompletata=[];if(!Array.isArray(pr.checklistAutoCompletata))pr.checklistAutoCompletata=[];if(pr.periodoDal===undefined)pr.periodoDal='';if(pr.periodoAl===undefined)pr.periodoAl='';if(pr.autoSalvataAlBlocco===undefined)pr.autoSalvataAlBlocco=(pr.esito==='AUTO-SALVATO');if(!pr.stato){if(pr.consegna)pr.stato='consegnata';else if(pr.firmaControllo)pr.stato='da_dispensare';else if(pr.firmaRiempimento||pr.esito==='AUTO-SALVATO')pr.stato='da_controllare';else pr.stato='da_controllare';}if(pr.stato==='preparata')pr.stato='da_controllare';if(pr.stato==='controllata')pr.stato='da_dispensare';});(t.storico||[]).forEach(function(hs){if(!hs.link)hs.link='';});return p;}
+let OPERATORI = [];
+
+// Snapshot terapie storiche (chiave: pazienteId-vN)
+let TERAPIE_STORICHE = {};
+
+// Firma temporanee per flussi modali
+let consegnaFirma = null;
+let annulloFirma  = null;
+let prepCorrente  = null;
+let checklistMode = 'prepare';
+let controlloEccezionalePending = null;
+let controlloEccezionaleRequired = false;
+
+// ════════════════════════════════════════════
+// DATABASE DEMO
+// ════════════════════════════════════════════
+let DB = {
+  pazienti: [
+    {
+      id:'P001', cognome:'Fenner', nome:'Walter', ddn:'1946-05-27',
+      medico:'Santa Croce', giorno:'Martedi', consegna:'Ritiro in farmacia',
+      allergie:'', note:'Diabetico. In dialisi.', versione:3,
+      terapia:{
+        dataSchema:'2026-02-17', dataSchemaPrecedente:'2026-01-27',
+        fissi:[
+          {nome:'AspirinCardio 100 mg',  mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Clopidogrel 75 mg',     mat:1,mez:0,ser:0,not:0,note:'fino al 27.05.26'},
+          {nome:'Nebilet 5 mg',          mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Torasemid 200',         mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Metolazon 5 mg',        mat:2,mez:0,ser:0,not:0,note:''},
+          {nome:'Esomeprazol 20 mg',     mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Lacdigest',             mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Zenon 20mg/10mg',       mat:0,mez:0,ser:1,not:0,note:''},
+          {nome:'Pregabalin Mepha 50 mg',mat:1,mez:0,ser:1,not:0,note:''},
+          {nome:'Alfuzosin retard 10',   mat:0,mez:0,ser:1,not:0,note:''},
+          {nome:'Renacet cpr 950 mg',    mat:1,mez:0,ser:1,not:0,note:''},
+        ],
+        autogestiti:[
+          {nome:'Ozempic Fix dose',      istruzioni:'1 mg settimanale - somministra Dialisi'},
+          {nome:'Anafranil 25 mg',       istruzioni:'1 alla sera'},
+          {nome:'Toujeo 300 UI/solostar',istruzioni:'13 U.I. alla sera dal 23.01.2026'},
+          {nome:'Laxoberon 7.5 mg/ml',   istruzioni:'20 gocce alla sera'},
+          {nome:'Seresta 15 mg',         istruzioni:'1 prima di coricarsi'},
+          {nome:'Riopan 800 gel',        istruzioni:'1 BST max 3 volte al giorno'},
+          {nome:'Renvela polv 2.4g',     istruzioni:'1 bustina a pranzo e 1 a cena'},
+        ],
+        riserva:[
+          {nome:'Novalgine 500 mg',istruzioni:'max 2 cpr ogni 8 ore'},
+          {nome:'Xyzal 5 mg',      istruzioni:'1 cpr se prurito'},
+          {nome:'Redormin 500 mg', istruzioni:'1 cpr se insonnia'},
+        ]
+      },
+      storico:[
+        {tipo:'terapia',data:'2026-02-06',medico:'Santa Croce',azione:'Riduzione Gabapentin, Quetiapi fissa',doc:'ricetta',op:'VZ',visto:'MQ',versione:1},
+        {tipo:'terapia',data:'2026-02-23',medico:'Santa Croce',azione:'Inizio terapia in dosette',doc:'ricetta',op:'VZ',visto:'MQ',versione:2},
+        {tipo:'terapia',data:'2026-02-26',medico:'Santa Croce',azione:'Aumento Gabapentin inizio Quetiapin',doc:'tel + ricetta',op:'VZ',visto:'fn',versione:3},
+      ],
+      preparazioni:[]
+    },
+    {
+      id:'P002', cognome:'Calabro', nome:'Francesca', ddn:'1938-07-17',
+      medico:'Varini', giorno:'Mercoledi', consegna:'Consegna EOC',
+      allergie:'Propofol (09.07.2024)', note:'Paziente Diabetica. Insulina schema variabile.',
+      versione:2,
+      terapia:{
+        dataSchema:'2026-03-11', dataSchemaPrecedente:'2025-07-17',
+        fissi:[
+          {nome:'Aspirin Cardio 100 mg',mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Pantoprazol 40 mg',    mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Forxiga 10 mg',        mat:1,mez:0,ser:0,not:0,note:''},
+          {nome:'Ac. Folico',           mat:1,mez:0,ser:0,not:0,note:'vene'},
+          {nome:'Amlodipina 5 mg',      mat:0,mez:0,ser:1,not:0,note:''},
+        ],
+        autogestiti:[
+          {nome:'Vi-de 3 gtt',       istruzioni:'20 gocce al mattino'},
+          {nome:'Novorapid Flex Pen', istruzioni:'secondo schema'},
+          {nome:'Ryzodeg',           istruzioni:'16 UI mattino, 10 UI pranzo'},
+          {nome:'Paragol',           istruzioni:'20 ml mattino e pranzo'},
+          {nome:'Toujeo',            istruzioni:'secondo schema'},
+        ],
+        riserva:[
+          {nome:'Quetiapin 25',   istruzioni:'1 x2/die se agitazione'},
+          {nome:'Dafalgan 500 mg',istruzioni:'1 cpr 3 volte al di'},
+          {nome:'Trittico 50',    istruzioni:'1/2 cpr 2x/die'},
+          {nome:'Gyno-canesten',  istruzioni:'2 volte al giorno'},
+          {nome:'Domperidon oro', istruzioni:'1 cpr 3 volte al di'},
+          {nome:'Movicol bst',    istruzioni:'1 bst max 2x/die'},
+        ]
+      },
+      storico:[
+        {tipo:'terapia',data:'2026-02-06',medico:'Varini',azione:'Introd. Renacet, stop Calcium carbonat',doc:'ricetta',op:'MQ',visto:'VF',versione:1},
+        {tipo:'terapia',data:'2026-03-11',medico:'Varini',azione:'Nuovo schema completo',doc:'ricetta',op:'VZ',visto:'VF',versione:2},
+      ],
+      preparazioni:[]
+    }
+  ]
+};
+
+// Snapshot demo per Calabro v1
+TERAPIE_STORICHE['P002-v1'] = {
+  dataSchema:'2025-07-17',
+  fissi:[
+    {nome:'Aspirin Cardio 100 mg',mat:1,mez:0,ser:0,not:0,note:''},
+    {nome:'Pantoprazol 40 mg',    mat:1,mez:0,ser:0,not:0,note:''},
+    {nome:'Forxiga 10 mg',        mat:1,mez:0,ser:0,not:0,note:''},
+  ],
+  autogestiti:[],
+  riserva:[]
+};
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let currentPazienteId = null;
+let pinCallback       = null;
+let pinBuffer         = '';
+let firmaRiempimento  = null;
+let firmaControllo    = null;
+let editFissi         = [];
+let editAutogestiti   = [];
+let editRiserva       = [];
+let _editFoto         = [];
+let _checkedFissi     = new Set();
+let _checkedAuto      = new Set();
+let _checklistItems   = [];   // {id, farmacoNome, momento, dose, note}
+let _checkedItems     = new Set();
+
+function getPrepWorkflowState(pr) {
+  if (!pr) return 'da_controllare';
+  if (pr.consegna) return 'consegnata';
+  if (pr.stato === 'preparata') return 'da_controllare';
+  if (pr.stato === 'controllata') return 'da_dispensare';
+  if (pr.stato) return pr.stato;
+  if (pr.firmaControllo) return 'da_dispensare';
+  return 'da_controllare';
+}
+
+function getPrepStateMeta(pr) {
+  var stato = getPrepWorkflowState(pr);
+  if (stato === 'consegnata') return { key: stato, label: 'CONSEGNATA', badge: 'badge-success' };
+  if (stato === 'da_dispensare') return { key: stato, label: 'DA DISPENSARE', badge: 'badge-success' };
+  return { key: 'da_controllare', label: 'DA CONTROLLARE', badge: 'badge-danger' };
+}
+
+function resetPreparazioneFlow() {
+  _checkedFissi = new Set();
+  _checkedAuto = new Set();
+  _checkedItems = new Set();
+  prepCorrente = null;
+  firmaRiempimento = null;
+  firmaControllo = null;
+  controlloEccezionalePending = null;
+  controlloEccezionaleRequired = false;
+  checklistMode = 'prepare';
+}
+
+function renderChecklistSelections() {
+  (_checklistItems || []).forEach(function(item) {
+    var row = document.getElementById('ci-' + item.id);
+    var cb = document.getElementById('cb-' + item.id);
+    if (!row || !cb) return;
+    var checked = _checkedItems.has(item.id);
+    row.classList.toggle('checked', checked);
+    cb.textContent = checked ? '✓' : '';
+  });
+  Array.from(_checkedAuto || []).forEach(function(i) {
+    var row = document.getElementById('ca-' + i);
+    var cb = document.getElementById('cba-' + i);
+    if (!row || !cb) return;
+    row.classList.add('checked');
+    cb.textContent = '✓';
+  });
+}
+
+function updateChecklistWorkflowUI() {
+  var riempWrap = document.getElementById('firma-riempimento-wrap');
+  var ctrlWrap = document.getElementById('firma-controllo-wrap');
+  var btnWrap = document.getElementById('btn-completa-prep');
+  var btn = document.getElementById('btn-completa-prep-action');
+  if (!riempWrap || !ctrlWrap || !btnWrap || !btn) return;
+
+  if (checklistMode === 'control') {
+    riempWrap.innerHTML = firmaRiempimento
+      ? firmaBox(firmaRiempimento, '✍️')
+      : '<div style="color:var(--danger);font-size:14px;text-align:center;padding:12px">Firma riempimento mancante</div>';
+    var ctrlHtml = firmaControllo
+      ? firmaBox(firmaControllo, '🔍')
+      : '<div style="color:var(--danger);font-size:14px;text-align:center;padding:12px">Operatore controllo non disponibile</div>';
+    if (controlloEccezionaleRequired) {
+      ctrlHtml += '<div class="prep-note-box" style="margin-top:12px;background:#fff8e1;border-color:#ffd54f;color:#8d6e63">⚠️ Controllo dallo stesso operatore del riempimento: inserisci il motivo per procedere.</div>'
+        + '<div class="form-group" style="margin-top:12px">'
+        + '<label class="form-label">Motivo controllo eccezionale</label>'
+        + '<textarea id="controllo-eccezionale-motivo-inline" class="form-input" style="min-height:88px;resize:vertical" placeholder="Motivo obbligatorio"></textarea>'
+        + '</div>';
+    }
+    ctrlWrap.innerHTML = ctrlHtml;
+    btn.textContent = '✅ Conferma controllo';
+    btnWrap.style.display = (firmaControllo && currentOperatore) ? '' : 'none';
+    return;
+  }
+
+  riempWrap.innerHTML = firmaRiempimento
+    ? firmaBox(firmaRiempimento, '✍️')
+    : '<div style="color:var(--danger);font-size:14px;text-align:center;padding:12px">Operatore preparazione non disponibile</div>';
+  ctrlWrap.innerHTML = firmaRiempimento
+    ? '<div style="color:var(--text3);font-size:14px;text-align:center;padding:12px">💾 Salva la preparazione per renderla disponibile al controllo</div>'
+    : '<div style="color:var(--text3);font-size:14px;text-align:center;padding:12px">⏳ Operatore non disponibile</div>';
+  btn.textContent = '💾 Salva preparazione';
+  btnWrap.style.display = (firmaRiempimento && currentOperatore) ? '' : 'none';
+}
+
+function openPreparazioneTab() {
+  showScreen('screen-paziente');
+  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 1); });
+  switchTab('preparazione', null);
+}
+
+function avviaControlloPreparazione(prepId) {
+  var p = getCP();
+  if (!p) { showToast('Paziente non trovato', 'error'); return; }
+  if (!currentOperatore) { logout(); return; }
+  var prep = (p.preparazioni || []).find(function(pr){ return pr.id === prepId; });
+  if (!prep) { showToast('Preparazione non trovata', 'error'); return; }
+  if (prep.annullata) { showToast('Preparazione annullata', 'error'); return; }
+  if (getPrepWorkflowState(prep) !== 'da_controllare') { showToast('Preparazione non disponibile per il controllo', 'error'); return; }
+
+  checklistMode = 'control';
+  prepCorrente = {
+    id: prep.id,
+    dataCreazione: prep.data || now(),
+    dal: prep.periodoDal || '',
+    al: prep.periodoAl || '',
+    numeroDosette: prep.numeroDosette || '',
+    periodoTesto: prep.periodo || ''
+  };
+  firmaRiempimento = prep.firmaRiempimento || null;
+  firmaControllo = currentOperatorSignature();
+  controlloEccezionaleRequired = !!(firmaRiempimento && firmaControllo && firmaRiempimento.sigla === firmaControllo.sigla);
+  _checkedItems = new Set(prep.checklistCompletata || []);
+  _checkedAuto = new Set(prep.checklistAutoCompletata || []);
+  _checkedFissi = new Set(Array.from(_checkedItems));
+
+  var subtitle = [p.cognome + ' ' + p.nome];
+  if (prep.periodo) subtitle.push(prep.periodo);
+  document.getElementById('checklist-subtitle').textContent = subtitle.join(' · ');
+  renderAllergieBar('allergie-bar-prep', p);
+  renderChecklist(p);
+  renderChecklistSelections();
+  updateProgress();
+  updateChecklistWorkflowUI();
+  showScreen('screen-checklist');
+}
+
+// ===== SESSIONE OPERATORE =====
+let currentOperatore  = null;  // {sigla, nome, ruolo}
+let _loginPinBuffer   = '';
+let _loginSelectedSigla = '';
+let _sessionTimer     = null;
+const SESSION_TIMEOUT  = 5  * 60 * 1000; // 5 minuti
+const LOCK_TIMEOUT     = 30 * 60 * 1000; // 30 minuti di lock -> logout
+
+// ===== RATE LIMITING LOGIN =====
+const PIN_MAX_TENTATIVI  = 5;
+const PIN_BLOCCO_MS      = 5 * 60 * 1000; // 5 minuti
+const PIN_RL_KEY         = 'fa_pin_rl';   // localStorage key
+
+function _rlGet(){ try{ return JSON.parse(localStorage.getItem(PIN_RL_KEY)||'{}'); }catch(e){ return {}; } }
+function _rlSave(o){ localStorage.setItem(PIN_RL_KEY, JSON.stringify(o)); }
+
+function _rlBloccato(){
+  var o=_rlGet();
+  if(!o.bloccatoAl) return false;
+  if(Date.now() < o.bloccatoAl) return true;
+  localStorage.removeItem(PIN_RL_KEY); return false;
+}
+
+function _rlRimanente(){
+  var o=_rlGet();
+  return o.bloccatoAl ? Math.ceil((o.bloccatoAl - Date.now()) / 1000) : 0;
+}
+
+function _rlRegistraErrore(){
+  var o=_rlGet();
+  o.tentativi = (o.tentativi||0) + 1;
+  if(o.tentativi >= PIN_MAX_TENTATIVI){ o.bloccatoAl = Date.now() + PIN_BLOCCO_MS; o.tentativi=0; }
+  _rlSave(o);
+}
+
+function _rlReset(){ localStorage.removeItem(PIN_RL_KEY); }
+let _sessionState  = 'active'; // active | locked
+let _lockTimer     = null;
+let _lockPinBuf    = '';
+
+
+// ════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════
+function getPaziente(id) { return DB.pazienti.find(function(p){ return p.id === id; }); }
+function getCP() { return getPaziente(currentPazienteId); }
+function todayISO() { return new Date().toISOString().split('T')[0]; }
+function now() {
+  return new Date().toLocaleString('it-CH', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function formatDate(s) {
+  if (!s) return '-';
+  var d = new Date(s);
+  return d.toLocaleDateString('it-CH', {day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function formatAge(s) {
+  return Math.floor((Date.now() - new Date(s)) / 31557600000) + ' anni';
+}
+function currentOperatorSignature() {
+  if (!currentOperatore) return null;
+  return {
+    nome: currentOperatore.nome,
+    sigla: currentOperatore.sigla,
+    ruolo: currentOperatore.ruolo || '',
+    ts: now()
+  };
+}
+function dose(v) {
+  if (!v || +v === 0) return '<span class="dose-empty">·</span>';
+  return '<span class="dose-val">' + v + '</span>';
+}
+function showToast(msg, type) {
+  type = type || '';
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(function(){ t.className = 'toast ' + type; }, 2500);
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  if (id === 'screen-operatori') renderOperatori();
+}
+function chiudiModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+function mostraModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function showStepCompletion(message) {
+  document.getElementById('step-complete-message').textContent = message || 'Operazione registrata correttamente.';
+  showScreen('screen-step-complete');
+  setTimeout(function(){ logout(); }, 1400);
+}
+
+function collectWorkflowQueue() {
+  var items = [];
+  DB.pazienti.forEach(function(p){
+    _gapMigra(p);
+    (p.preparazioni || []).forEach(function(pr){
+      if (!pr) return;
+      if (pr.annullata) return;
+      var stato = getPrepWorkflowState(pr);
+      if (stato !== 'da_controllare' && stato !== 'da_dispensare') return;
+      items.push({
+        patientId: p.id || '',
+        patientName: ((p.cognome || '') + ' ' + (p.nome || '')).trim(),
+        patientMeta: [formatDate(p.ddn || ''), p.medico || '—'].join(' · '),
+        prepId: pr.id,
+        prep: pr,
+        stato: stato
+      });
+    });
+  });
+  items.sort(function(a, b){
+    var pa = a.stato === 'da_controllare' ? 0 : 1;
+    var pb = b.stato === 'da_controllare' ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    return String(b.prep && b.prep.data || '').localeCompare(String(a.prep && a.prep.data || ''));
+  });
+  return items;
+}
+
+function openQueueItem(patientId, prepId, stato) {
+  openPaziente(patientId);
+  if (stato === 'da_controllare') {
+    avviaControlloPreparazione(prepId);
+    return;
+  }
+  switchTab('preparazione', null);
+  showConsegnaModal(prepId);
+}
+
+// ════════════════════════════════════════════
+// HOME
+// ════════════════════════════════════════════
+function renderHome() {
+  var q = ((document.getElementById('search-input') || {}).value || '').toLowerCase().trim();
+  var resultsEl = document.getElementById('patient-search-results');
+  var badge = document.getElementById('count-badge');
+  var queueEl = document.getElementById('workflow-queue');
+  var queue = [];
+  try {
+    queue = collectWorkflowQueue();
+  } catch (e) {
+    console.error('Workflow queue render error:', e);
+    queue = [];
+  }
+  var fil = DB.pazienti.filter(function(p){
+    _gapMigra(p);
+    var _fs=(document.getElementById('filtro-stato')||{value:'tutti'}).value;
+    var hay=((p.cognome||'')+' '+(p.nome||'')+' '+(p.ddn||'')).toLowerCase();
+    return (_fs==='tutti'||(p.stato||'attivo')===_fs) && hay.indexOf(q)!==-1;
+  });
+  badge.textContent = fil.length;
+  if (resultsEl) {
+    if (!q) {
+      resultsEl.innerHTML = '';
+    } else if (!fil.length) {
+      resultsEl.innerHTML = '<div class="empty-state" style="padding:14px 0 8px"><div class="icon">🔍</div><p>Nessun paziente trovato</p></div>';
+    } else {
+      resultsEl.innerHTML = fil.map(function(p){
+        var ha  = p.allergie && p.allergie.trim();
+        var ini = escHtml(((p.cognome||'?')[0] || '?') + (((p.nome||'')[0]) || ''));
+        var badges = '';
+        if (ha)  badges += '<span class="badge badge-danger">⚠️ ' + escHtml(p.allergie) + '</span>';
+        badges += '<span class="badge badge-gray">' + escHtml(p.giorno || '—') + '</span>';
+        badges += '<span class="badge badge-info">v' + escHtml(String(p.versione || '—')) + '</span>';
+        if (p.note && p.note.toLowerCase().indexOf('diabetico') !== -1)
+          badges += '<span class="badge badge-warning">Diabetico</span>';
+        if (p.note && p.note.toLowerCase().indexOf('dialisi') !== -1)
+          badges += '<span class="badge badge-info">Dialisi</span>';
+        var statoSafe = escHtml(p.stato || 'attivo');
+        return '<div class="patient-item" data-pid="' + escHtml(p.id) + '" onclick="openPaziente(this.getAttribute(\'data-pid\'))">'
+          + '<div class="patient-avatar' + (ha ? ' has-allergy' : '') + '">' + ini + '</div>'
+          + '<div class="patient-info">'
+          + '<div class="patient-name">' + escHtml(p.cognome) + ' ' + escHtml(p.nome) + '</div>'
+          + '<div class="patient-meta">' + formatDate(p.ddn) + ' · ' + formatAge(p.ddn) + ' · ' + escHtml(p.medico || '—') + '</div>'
+          + '<div class="patient-badges">' + ((p.stato&&p.stato!=='attivo') ? '<span class="badge-stato-' + statoSafe + '">' + statoSafe.toUpperCase() + '</span>' : '') + badges + '</div>'
+          + '</div><span class="chevron">›</span></div>';
+      }).join('');
+    }
+  }
+  if (queueEl) {
+    if (!queue.length) {
+      queueEl.innerHTML = '<div class="card" style="background:var(--surface2);border-color:var(--border);margin-bottom:14px"><div style="font-size:14px;font-weight:700;margin-bottom:6px">Coda operativa</div><div style="font-size:13px;color:var(--text2)">Nessuna dosette in attesa di controllo o consegna.</div></div>';
+    } else {
+      queueEl.innerHTML =
+        '<div class="section-header" style="margin-top:6px"><span class="section-title">Coda operativa</span><span class="badge badge-info">' + queue.length + '</span></div>'
+        + queue.map(function(item){
+          var statoLabel = item.stato === 'da_controllare' ? 'DA CONTROLLARE' : 'PRONTA PER LA CONSEGNA';
+          var statoClass = item.stato === 'da_controllare' ? 'badge-danger' : 'badge-success';
+          var azione = item.stato === 'da_controllare' ? 'Apri controllo' : 'Apri consegna';
+          return '<div class="prep-card" style="margin-bottom:10px">'
+            + '<div class="prep-header">'
+            + '<div><div class="prep-periodo">' + escHtml(item.patientName) + '</div><div class="prep-data">' + escHtml(item.patientMeta) + (item.prep.numeroDosette ? ' · <b style="color:var(--accent)">N° ' + escHtml(String(item.prep.numeroDosette)) + '</b>' : '') + '</div></div>'
+            + '<span class="badge ' + statoClass + '">' + statoLabel + '</span>'
+            + '</div>'
+            + '<div style="font-size:13px;color:var(--text2);padding-bottom:8px">' + escHtml(item.prep.periodo || '') + '</div>'
+            + '<div class="prep-actions"><button class="btn btn-sm btn-outline" style="flex:1" onclick="openQueueItem(\'' + escJs(item.patientId) + '\',\'' + escJs(item.prepId) + '\',\'' + escJs(item.stato) + '\')">' + azione + '</button></div>'
+            + '</div>';
+        }).join('');
+    }
+  }
+}
+document.getElementById('search-input').addEventListener('input', renderHome);
+
+// ════════════════════════════════════════════
+// STORICO DOSETTES
+// ════════════════════════════════════════════
+var _storicoData = [];
+
+function normalizzaStorico() {
+  var result = [];
+  DB.pazienti.forEach(function(p) {
+    var pazNome = ((p.cognome||'') + ' ' + (p.nome||'')).trim();
+    (p.storico || []).forEach(function(s, idx) {
+      var dataRaw = s.data || '';
+      var opNome = s.op ? ((OPERATORI.find(function(o){return o.sigla===s.op;})||{nome:s.op}).nome) : '—';
+      var vistoNome = s.visto && s.visto !== '-' ? ((OPERATORI.find(function(o){return o.sigla===s.visto;})||{nome:s.visto}).nome) : '';
+      result.push({
+        key:        p.id + '::' + idx,
+        patientId:  p.id,
+        patientName:pazNome,
+        tipo:       s.tipo || 'terapia',
+        data:       dataRaw,
+        azione:     s.azione || '—',
+        opSigla:    s.op || '',
+        opNome:     opNome,
+        vistoNome:  vistoNome,
+        ndosette:   s.ndosette || '',
+        versione:   s.versione != null ? s.versione : null,
+        medico:     s.medico && s.medico !== '-' ? s.medico : '',
+        link:       s.link || ''
+      });
+    });
+  });
+  result.sort(function(a, b) {
+    function sv(raw) {
+      if (!raw) return 0;
+      if (typeof raw === 'object' && raw.seconds) return raw.seconds * 1000;
+      var n = Date.parse(raw); return isNaN(n) ? 0 : n;
+    }
+    return sv(b.data) - sv(a.data);
+  });
+  return result;
+}
+
+function renderStoricoGlobale() {
+  _storicoData = normalizzaStorico();
+  document.getElementById('storico-count').textContent = _storicoData.length;
+  document.getElementById('storico-search').value = '';
+  renderStoricoList(_storicoData);
+}
+
+function filterStorico(q) {
+  q = (q || '').toLowerCase().trim();
+  var filtered = q ? _storicoData.filter(function(d) {
+    return [d.patientName, d.azione, d.opNome, d.vistoNome, d.tipo, d.medico].join(' ').toLowerCase().indexOf(q) !== -1;
+  }) : _storicoData;
+  renderStoricoList(filtered);
+}
+
+function renderStoricoList(data) {
+  var list = document.getElementById('storico-list');
+  if (!data.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Nessun evento trovato</p></div>';
+    return;
+  }
+  list.innerHTML = data.map(function(d) {
+    var tipoIcon = d.tipo === 'terapia' ? '💊' : d.tipo === 'consegna' ? '📦' : d.tipo === 'visita' ? '🩺' : '📋';
+    var dataStr = d.data ? (typeof d.data === 'object' && d.data.seconds ? new Date(d.data.seconds*1000).toLocaleDateString('it-CH') : String(d.data).substring(0,10)) : '—';
+    var metaParts = [dataStr, d.opNome && d.opNome !== '—' ? d.opNome : ''].filter(Boolean);
+    if (d.vistoNome) metaParts.push('✓ ' + d.vistoNome);
+    if (d.ndosette) metaParts.push(d.ndosette + ' dos.');
+    return '<div class="patient-item" data-key="' + escHtml(d.key) + '" onclick="apriDettaglioStorico(this.dataset.key)">'
+      + '<div class="patient-info">'
+      + '<div class="patient-name">' + tipoIcon + ' ' + escHtml(d.patientName) + '</div>'
+      + '<div class="patient-meta">' + escHtml(metaParts.join(' · ')) + '</div>'
+      + '<div class="patient-badges"><span class="badge badge-gray">' + escHtml(d.azione) + '</span>'
+      + (d.versione != null ? ' <span class="badge badge-info">v' + escHtml(String(d.versione)) + '</span>' : '')
+      + '</div>'
+      + '</div><span class="chevron">›</span></div>';
+  }).join('');
+}
+
+function apriDettaglioStorico(key) {
+  var d = _storicoData.find(function(x){ return x.key === key; });
+  if (!d) return;
+  var dataStr = d.data ? (typeof d.data === 'object' && d.data.seconds ? new Date(d.data.seconds*1000).toLocaleString('it-CH') : String(d.data)) : '—';
+  var body = '<div style="font-size:13px">'
+    + '<div style="display:grid;grid-template-columns:130px 1fr;gap:5px 12px;margin-bottom:16px">'
+    + '<b style="color:#888">Tipo</b><span>' + escHtml(d.tipo) + '</span>'
+    + '<b style="color:#888">Data</b><span>' + escHtml(dataStr) + '</span>'
+    + '<b style="color:#888">Azione</b><span>' + escHtml(d.azione) + '</span>'
+    + '<b style="color:#888">Operatore</b><span>' + escHtml(d.opNome || d.opSigla || '—') + '</span>'
+    + (d.vistoNome ? '<b style="color:#888">Visto da</b><span>' + escHtml(d.vistoNome) + '</span>' : '')
+    + (d.ndosette ? '<b style="color:#888">N. dosette</b><span>' + escHtml(String(d.ndosette)) + '</span>' : '')
+    + (d.versione != null ? '<b style="color:#888">Versione</b><span>v' + escHtml(String(d.versione)) + '</span>' : '')
+    + (d.medico ? '<b style="color:#888">Medico</b><span>' + escHtml(d.medico) + '</span>' : '')
+    + (d.link ? '<b style="color:#888">Link</b><span><a href="' + escHtml(d.link) + '" target="_blank" style="color:#0066cc">Apri</a></span>' : '')
+    + '</div>'
+    + '</div>';
+  mostraModal('<div style="padding:4px"><div style="font-size:16px;font-weight:700;margin-bottom:16px">📋 '+escHtml(d.patientName)+'</div>'+body
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px">'
+    +'<button class="btn btn-ghost" onclick="chiudiModal();openPaziente(\''+escJs(d.patientId)+'\')">👤 Vai alla scheda</button>'
+    +'<button class="btn btn-primary" onclick="chiudiModal()">Chiudi</button>'
+    +'</div></div>');
+}
+
+// ════════════════════════════════════════════
+// PAZIENTE
+// ════════════════════════════════════════════
+function openPaziente(id) {
+  if (!currentOperatore) { logout(); return; }
+  currentPazienteId = id;
+  var p = getCP();
+  document.getElementById('pz-header-nome').textContent = p.cognome + ' ' + p.nome;
+  document.getElementById('pz-header-meta').textContent = formatDate(p.ddn) + ' · ' + formatAge(p.ddn);
+  renderAllergieBar('allergie-bar', p);
+  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 0); });
+  switchTab('terapia', null);
+  showScreen('screen-paziente');
+}
+
+function renderAllergieBar(elId, p) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  if (p.allergie && p.allergie.trim()) {
+    el.innerHTML = '<div class="allergie-banner"><span style="font-size:20px">⚠️</span>ALLERGIE: ' + escHtml(p.allergie) + '</div>';
+  } else {
+    el.innerHTML = '<div class="no-allergie-banner">✅ Nessuna allergia documentata</div>';
+  }
+}
+
+function switchTab(tab, btn) {
+  ['terapia','preparazione','anagrafica','storico'].forEach(function(t){
+    document.getElementById('tab-' + t).style.display = (t === tab) ? '' : 'none';
+  });
+  if (btn) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+  var p = getCP();
+  if (tab === 'terapia')      renderTerapia(p);
+  if (tab === 'preparazione') renderPreparazione(p);
+  if (tab === 'anagrafica')   renderAnagrafica(p);
+  if (tab === 'storico')      renderStorico(p);
+}
+
+// ════════════════════════════════════════════
+// TERAPIA VIEW
+// ════════════════════════════════════════════
+function renderTerapia(p) {
+  document.getElementById('versione-label').textContent = 'v' + p.versione + ' · ' + formatDate(p.terapia.dataSchema);
+  renderFotoTerapia(p.terapia.foto || []);
+  document.getElementById('terapia-table').innerHTML = buildTerapiaTable(p.terapia);
+}
+
+function renderFotoTerapia(foto) {
+  var el = document.getElementById('terapia-foto-bar');
+  if (!el) return;
+  var urls = (foto || []).filter(Boolean);
+  if (!urls.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:6px 0 10px">'
+    + '<span style="font-size:12px;color:var(--text2);font-weight:600;white-space:nowrap">📷 Ricetta/Schema:</span>'
+    + urls.map(function(url, i) {
+        return '<a href="' + escHtml(url) + '" target="_blank" title="Apri foto ' + (i+1) + '">'
+          + '<img src="' + escHtml(url) + '" class="foto-thumb" alt="Foto ' + (i+1) + '">'
+          + '</a>';
+      }).join('')
+    + '</div>';
+}
+
+function renderEditFoto() {
+  var el = document.getElementById('edit-foto-container');
+  if (!el) return;
+  var html = '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:8px 0">';
+  for (var i = 0; i < _editFoto.length; i++) {
+    var ef = _editFoto[i];
+    var src = ef.previewUrl || ef.storageUrl || '';
+    html += '<div class="edit-foto-card">'
+      + '<button class="edit-foto-remove" onclick="rimuoviEditFoto(' + i + ')">✕</button>'
+      + '<img src="' + escHtml(src) + '" class="foto-thumb" style="width:72px;height:72px" alt="Foto ' + (i+1) + '">'
+      + '<div style="font-size:10px;color:var(--text2);margin-top:4px">Foto ' + (i+1) + '</div>'
+      + '</div>';
+  }
+  if (_editFoto.length < 2) {
+    html += '<button class="btn btn-outline" onclick="document.getElementById(\'edit-foto-input\').click()"'
+      + ' style="width:72px;height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;gap:4px;border-style:dashed">'
+      + '<span style="font-size:22px">📷</span>Aggiungi'
+      + '</button>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function aggiungiEditFoto(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (_editFoto.length >= 2) { showToast('Massimo 2 foto per terapia', 'error'); return; }
+  _editFoto.push({ file: file, previewUrl: URL.createObjectURL(file) });
+  input.value = '';
+  renderEditFoto();
+}
+
+function rimuoviEditFoto(i) {
+  if (_editFoto[i] && _editFoto[i].previewUrl) URL.revokeObjectURL(_editFoto[i].previewUrl);
+  _editFoto.splice(i, 1);
+  renderEditFoto();
+}
+
+function buildTerapiaTable(t) {
+  var h = '<tr><th style="text-align:left;padding-left:12px;min-width:150px">Farmaco</th>'
+    + '<th>Mat</th><th>Mez</th><th>Ser</th><th>Not</th>'
+    + '<th style="text-align:left">Note</th></tr>';
+  h += '<tr><td colspan="6" class="categoria-header">▸ FISSI</td></tr>';
+  (t.fissi || []).forEach(function(f){
+    var nomeF = escHtml(f.nome);
+    h += '<tr><td>' + (f.sospeso ? '<s class="farmaco-sospeso">' + nomeF + '</s> <span style="font-size:10px;color:#ff9800;font-weight:600">[SOSP]</span>' : nomeF) + '</td>'
+      + '<td>' + dose(f.mat) + '</td><td>' + dose(f.mez) + '</td>'
+      + '<td>' + dose(f.ser) + '</td><td>' + dose(f.not) + '</td>'
+      + '<td style="font-size:12px;color:var(--text2)">' + escHtml(f.note || '') + '</td></tr>';
+  });
+  if ((t.autogestiti || []).length) {
+    h += '<tr><td colspan="6" class="categoria-header">▸ AUTOGESTITI</td></tr>';
+    t.autogestiti.forEach(function(f){
+      h += '<tr><td>' + escHtml(f.nome) + '</td>'
+        + '<td colspan="4" style="text-align:left;font-size:13px;color:var(--text2)">' + escHtml(f.istruzioni || '') + '</td>'
+        + '<td></td></tr>';
+    });
+  }
+  if ((t.riserva || []).length) {
+    h += '<tr><td colspan="6" class="categoria-header">▸ RISERVA</td></tr>';
+    t.riserva.forEach(function(f){
+      h += '<tr><td>' + escHtml(f.nome) + '</td>'
+        + '<td colspan="4" style="text-align:left;font-size:13px;color:var(--text2)">' + escHtml(f.istruzioni || '') + '</td>'
+        + '<td></td></tr>';
+    });
+  }
+  return h;
+}
+
+// ════════════════════════════════════════════
+// PREPARAZIONE VIEW
+// ════════════════════════════════════════════
+function renderPreparazione(p) {
+  var list = document.getElementById('prep-list');
+  if (!p.preparazioni || !p.preparazioni.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="icon">📋</div><p>Nessuna preparazione</p></div>';
+    return;
+  }
+  list.innerHTML = p.preparazioni.slice().reverse().map(function(pr){
+    var canceled = pr.annullata;
+    var statoInfo = getPrepStateMeta(pr);
+    var statoClass = canceled ? 'badge-canceled' : statoInfo.badge;
+    var statoLabel = canceled ? 'ANNULLATA' : statoInfo.label;
+    var periodoHtml = canceled
+      ? '<span style="text-decoration:line-through">' + escHtml(pr.periodo || '') + '</span>'
+      : escHtml(pr.periodo || '');
+
+    var consegnaHtml = '';
+    if (pr.consegna) {
+      consegnaHtml = '<div class="prep-consegna">'
+        + '<div class="prep-consegna-label">📦 Consegnata</div>'
+        + '<div style="font-size:13px"><b>' + escHtml(pr.consegna.destinatario || '') + '</b> · ' + escHtml(pr.consegna.data || '') + (pr.consegna.numeroDosette ? ' · <b>N° ' + escHtml(String(pr.consegna.numeroDosette)) + '</b>' : '') + '</div>'
+        + '<div style="font-size:12px;color:var(--text2)">Da: ' + escHtml(pr.consegna.operatore || '')
+        + (pr.consegna.modalita ? ' · ' + escHtml(pr.consegna.modalita) : '')
+        + (pr.consegna.note ? ' · ' + escHtml(pr.consegna.note) : '') + '</div>'
+        + '</div>';
+    }
+
+    var actionsHtml = '';
+    if (canceled) {
+      var riativaBtn = isFarmacista(currentOperatore)
+        ? '<button class="btn btn-sm btn-outline" style="flex:1;margin-top:8px" onclick="riattivaPrepara(\''
+          + escHtml(pr.id) + '\')">&uarr; Riattiva preparazione</button>'
+        : '';
+      actionsHtml = '<div style="font-size:12px;color:var(--canceled);margin-top:6px;font-style:italic">'
+        + 'Annullata da: ' + escHtml(pr.annullataDA || '-') + ' il ' + escHtml(pr.annullataIL || '-')
+        + (pr.motivoAnnullo ? ' &middot; Motivo: ' + escHtml(pr.motivoAnnullo) : '') + '</div>'
+        + (riativaBtn ? '<div class="prep-actions">' + riativaBtn + '</div>' : '');
+    } else {
+      var btns = '';
+      if (statoInfo.key === 'da_controllare') {
+        btns += '<button class="btn btn-sm btn-outline" style="flex:1" onclick="avviaControlloPreparazione(\''
+          + escHtml(pr.id) + '\')">🔍 Controlla</button>';
+      }
+      if (statoInfo.key === 'da_dispensare' && !pr.consegna) {
+        btns += '<button class="btn btn-sm btn-outline" style="flex:1" onclick="showConsegnaModal(\''
+          + escHtml(pr.id) + '\')">📦 Registra consegna</button>';
+      }
+      btns += '<button class="btn btn-sm btn-ghost" style="flex:1;color:var(--danger)" onclick="mostraAnnullaModal(\''
+        + escHtml(pr.id) + '\')">🗑 Annulla</button>';
+      actionsHtml = '<div class="prep-actions">' + btns + '</div>';
+    }
+
+    return '<div class="prep-card' + (canceled ? ' canceled' : '') + '">'
+      + '<div class="prep-header">'
+      + '<div><div class="prep-periodo">' + periodoHtml + '</div>'
+      + '<div class="prep-data">' + escHtml(pr.data || '') + ' · v' + escHtml(String(pr.versione || '')) + (pr.numeroDosette ? ' · <b style="color:var(--accent)">N° ' + escHtml(String(pr.numeroDosette)) + '</b>' : '') + '</div></div>'
+      + '<span class="badge ' + statoClass + '">' + escHtml(statoLabel) + '</span>'
+      + '</div>'
+      + '<div class="prep-firme">'
+      + '<span>✍️ <b>' + escHtml(pr.firmaRiempimento ? pr.firmaRiempimento.nome : '-') + '</b>'
+      + ' <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">'
+      + escHtml(pr.firmaRiempimento ? pr.firmaRiempimento.ts : '') + '</span></span>'
+      + '<span>🔍 <b>' + escHtml(pr.firmaControllo ? pr.firmaControllo.nome : '-') + '</b>'
+      + ' <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">'
+      + escHtml(pr.firmaControllo ? pr.firmaControllo.ts : '') + '</span></span>'
+      + '</div>'
+      + (pr.controlloEccezionale ? '<div class="prep-note-box" style="background:#fff8e1;border-color:#ffd54f;color:#8d6e63">⚠️ Controllo eccezionale dallo stesso operatore'
+        + (pr.controlloEccezionale.motivo ? ' · Motivo: ' + escHtml(pr.controlloEccezionale.motivo) : '')
+        + '</div>' : '')
+      + (pr.autoSalvataAlBlocco ? '<div class="prep-note-box" style="background:#fff8e1;border-color:#ffd54f;color:#8d6e63">⚠️ Salvata automaticamente al blocco sessione</div>' : '')
+      + (pr.note ? '<div class="prep-note-box">📝 ' + escHtml(pr.note) + '</div>' : '') + (pr.opPrep ? '<div style="font-size:11px;color:#888;padding:0 0 4px 2px">Preparato da: <b>' + escHtml(pr.opPrep) + '</b></div>' : '') + consegnaHtml + actionsHtml
+      + '</div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+// CONSEGNA MODAL
+// ════════════════════════════════════════════
+function showConsegnaModal(prepId) {
+  if (!currentOperatore) { logout(); return; }
+  consegnaFirma = currentOperatorSignature();
+  var p    = getCP();
+  var prep = p.preparazioni.find(function(pr){ return pr.id === prepId; });
+  if (!prep) { showToast('Preparazione non trovata', 'error'); return; }
+  if (getPrepWorkflowState(prep) !== 'da_dispensare') { showToast('La consegna è disponibile solo dopo il controllo', 'error'); return; }
+  prepCorrente = {
+    id: prep.id,
+    dataCreazione: prep.data || now(),
+    dal: prep.periodoDal || '',
+    al: prep.periodoAl || '',
+    numeroDosette: prep.numeroDosette || '',
+    periodoTesto: prep.periodo || ''
+  };
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0">📦 Registra consegna</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">Data consegna</label>'
+    + '<input type="date" class="form-input" id="cons-data" value="' + todayISO() + '"></div>'
+    + '<div class="form-group"><label class="form-label">Destinatario *</label>'
+    + '<input type="text" class="form-input" id="cons-dest" placeholder="Nome paziente / familiare / EOC..."></div>'
+    + '<div class="form-group">'
+    + '<label class="form-label">Conferma dosette da consegnare</label>'
+    + '<label id="cons-dos-confirm-lbl" onclick="toggleConsDosConfirm()" style="display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:12px 16px;transition:all 0.15s">'
+    + '<input type="checkbox" id="cons-dos-confirm" style="width:20px;height:20px;accent-color:var(--accent);pointer-events:none">'
+    + '<span style="font-size:18px;font-weight:700;color:var(--accent-dark)">Dosette N° ' + (prep.numeroDosette || '?') + '</span>'
+    + '<span style="font-size:12px;color:var(--text2)">spunta per confermare</span>'
+    + '</label>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">Modalita</label>'
+    + '<select class="form-select" id="cons-modalita">'
+    + '<option>Ritiro in farmacia</option><option>Struttura esterna</option>'
+    + '<option>Consegna a domicilio</option><option>Consegnata a familiare</option>'
+    + '</select></div>'
+    + '<div class="form-group"><label class="form-label">Note</label>'
+    + '<input type="text" class="form-input" id="cons-note" placeholder="Opzionale"></div>'
+    + '<div class="card-title">OPERATORE DISPENSAZIONE</div>'
+    + '<div id="cons-firma-wrap">'
+    + firmaBox(consegnaFirma, '📦')
+    + '<button class="btn btn-primary btn-full" style="margin-top:12px" onclick="salvaConsegna()">✅ Salva dispensazione</button>'
+    + '</div>';
+  mostraModal(html);
+}
+
+function toggleConsDosConfirm() {
+  var cb = document.getElementById('cons-dos-confirm');
+  var lbl = document.getElementById('cons-dos-confirm-lbl');
+  if (!cb || !lbl) return;
+  if (cb.checked) {
+    lbl.style.background = 'var(--accent-light)';
+    lbl.style.borderColor = 'var(--accent)';
+  } else {
+    lbl.style.background = 'var(--surface2)';
+    lbl.style.borderColor = 'var(--border)';
+  }
+}
+
+function salvaConsegna() {
+  var firma = consegnaFirma || currentOperatorSignature();
+  if (!firma) { logout(); return; }
+  var prepId = prepCorrente ? prepCorrente.id : null;
+  if (!prepId) {
+    var pz = getCP();
+    var destProbe = document.getElementById('cons-dest');
+    var candidate = (pz && pz.preparazioni || []).find(function(pr){
+      return !pr.annullata && getPrepWorkflowState(pr) === 'da_dispensare';
+    });
+    prepId = candidate ? candidate.id : null;
+  }
+  var dest = document.getElementById('cons-dest') ? document.getElementById('cons-dest').value.trim() : '';
+  if (!dest) { showToast('Inserisci il destinatario', 'error'); return; }
+  var cb = document.getElementById('cons-dos-confirm');
+  if (!cb || !cb.checked) { showToast('Spunta la dosette da consegnare per confermare', 'error'); return; }
+  var p = getCP();
+  var prep = p.preparazioni.find(function(pr){ return pr.id === prepId; });
+  if (!prep) { chiudiModal(); return; }
+  var ndos = prep ? String(prep.numeroDosette || '') : '';
+  prep.consegna = {
+    data:          formatDate(document.getElementById('cons-data').value),
+    destinatario:  dest,
+    modalita:      document.getElementById('cons-modalita').value,
+    note:          document.getElementById('cons-note').value.trim(),
+    operatore:     firma.nome + ' (' + firma.sigla + ')',
+    ts:            firma.ts,
+    numeroDosette: ndos
+  };
+  prep.stato = 'consegnata';
+  prep.esito = 'CONSEGNATA';
+  prep.inCorso = false;
+  prep.autoSalvataAlBlocco = false;
+  prep.dataUltimoAggiornamento = now();
+  p.storico.push({
+    tipo:'consegna', data:todayISO(), medico:'-',
+    azione:'Dosette consegnate a ' + dest + (ndos ? ' · N° dosette: ' + ndos : ''),
+    doc:'-', op:firma.sigla, visto:'-', ndosette: ndos
+  });
+  sincronizzaPaziente(p); // sync Firestore
+  chiudiModal();
+  renderPreparazione(p);
+  renderHome();
+  showStepCompletion('Dispensazione salvata correttamente. Operatore disconnesso.');
+}
+
+// ════════════════════════════════════════════
+// RIATTIVA PREPARAZIONE (solo Farmacista)
+// ════════════════════════════════════════════
+function riattivaPrepara(prepId) {
+  if (!isFarmacista(currentOperatore)) {
+    showToast('Funzione riservata al Farmacista', 'error');
+    return;
+  }
+  var p = getCP();
+  var prep = p.preparazioni.find(function(pr){ return pr.id === prepId; });
+  if (!prep) { showToast('Preparazione non trovata', 'error'); return; }
+  mostraModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+    + '<div class="modal-title" style="margin:0;color:var(--primary)">&#8593; Riattiva preparazione</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">&#10005;</button>'
+    + '</div>'
+    + '<div class="card" style="background:#e8f5e9;border-color:var(--primary);padding:12px 16px;margin-bottom:16px">'
+    + '<div style="font-size:13px;color:var(--primary);font-weight:600">La preparazione verrà rimessa in stato ATTIVO. L&#39;annullamento precedente resta tracciato nello storico.</div>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">Motivo riattivazione</label>'
+    + '<input type="text" class="form-input" id="riat-motivo" placeholder="es. Errore di annullamento, paziente rientrato..."></div>'
+    + '<button class="btn btn-primary btn-full" onclick="confermaRiattiva(\'' + prepId + '\')">&#8593; Conferma riattivazione</button>'
+  );
+}
+
+function confermaRiattiva(prepId) {
+  if (!isFarmacista(currentOperatore)) {
+    showToast('Funzione riservata al Farmacista', 'error');
+    return;
+  }
+  var motivo = document.getElementById('riat-motivo') ? document.getElementById('riat-motivo').value.trim() : '';
+  var p = getCP();
+  var prep = p.preparazioni.find(function(pr){ return pr.id === prepId; });
+  if (!prep) { chiudiModal(); return; }
+  prep.annullata = false;
+  prep.annulloMotivo = null;
+  prep.annulloOp = null;
+  prep.annulloTs = null;
+  prep.stato = prep.consegna ? 'consegnata' : (prep.firmaControllo ? 'da_dispensare' : 'da_controllare');
+  p.storico.push({
+    tipo:'preparazione', data:todayISO(), medico:'-',
+    azione:'Preparazione riattivata' + (motivo ? ': ' + motivo : ''),
+    doc:'-', op:currentOperatore.sigla, visto:'-'
+  });
+  sincronizzaPaziente(p);
+  chiudiModal();
+  showToast('Preparazione riattivata ✓', 'success');
+  renderPreparazione(p);
+}
+
+// ════════════════════════════════════════════
+// ANNULLA PREPARAZIONE MODAL
+// ════════════════════════════════════════════
+function mostraAnnullaModal(prepId) {
+  annulloFirma = null;
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0;color:var(--danger)">🗑 Annulla preparazione</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div class="card" style="background:var(--danger-light);border-color:var(--danger);padding:12px 16px;margin-bottom:16px">'
+    + '<div style="font-size:13px;color:var(--danger);font-weight:600">La preparazione restera nello storico come ANNULLATA con indicazione di chi e quando.</div>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">Motivo annullamento *</label>'
+    + '<input type="text" class="form-input" id="annullo-motivo" placeholder="es. Errore di periodo, paziente ricoverato..."></div>'
+    + '<div class="card-title">FIRMA ANNULLAMENTO</div>'
+    + '<div id="annullo-firma-wrap">'
+    + '<button class="btn btn-danger btn-full" onclick="apriPinAnnullo(\'' + prepId + '\')">🔐 Firma per confermare</button>'
+    + '</div>';
+  mostraModal(html);
+}
+
+function apriPinAnnullo(prepId) {
+  if (!currentOperatore) { logout(); return; }
+  pinCallback = 'annullo:' + prepId;
+  annulloFirma = currentOperatorSignature();
+  var wrap = document.getElementById('annullo-firma-wrap');
+  if (wrap) {
+    wrap.innerHTML = firmaBox(annulloFirma, '🗑')
+      + '<button class="btn btn-danger btn-full" style="margin-top:12px" onclick="confermAnnullo(annulloFirma)">✅ Conferma annullamento</button>';
+  }
+}
+
+function confermAnnullo(firma) {
+  var prepId = pinCallback.split(':')[1];
+  var motivo = document.getElementById('annullo-motivo') ? document.getElementById('annullo-motivo').value.trim() : '';
+  if (!motivo) { showToast('Inserisci il motivo', 'error'); return; }
+  var p = getCP();
+  var prep = p.preparazioni.find(function(pr){ return pr.id === prepId; });
+  if (!prep) { chiudiModal(); return; }
+  prep.annullata   = true;
+  prep.annullataDA = firma.nome + ' (' + firma.sigla + ')';
+  prep.annullataIL = now();
+  prep.motivoAnnullo = motivo;
+  p.storico.push({
+    tipo:'annullo', data:todayISO(), medico:'-',
+    azione:'Preparazione annullata: ' + motivo,
+    doc:'-', op:firma.sigla, visto:'-'
+  });
+  sincronizzaPaziente(p); // sync Firestore
+  chiudiModal();
+  showToast('Preparazione annullata', 'success');
+  renderPreparazione(p);
+}
+
+// ════════════════════════════════════════════
+// ANAGRAFICA
+// ════════════════════════════════════════════
+function renderAnagrafica(p) {
+  var statoColor = p.stato==='sospeso'?'#ff9800':p.stato==='dimesso'?'#9e9e9e':'var(--primary,#2979ff)';
+  var html = '<div class="info-row"><span class="info-key">Cognome e nome</span><span class="info-val">' + escHtml(p.cognome) + ' ' + escHtml(p.nome) + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Data di nascita</span><span class="info-val">' + formatDate(p.ddn) + ' (' + formatAge(p.ddn) + ')</span></div>'
+    + '<div class="info-row"><span class="info-key">Medico</span><span class="info-val">' + escHtml(p.medico) + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Giorno ritiro</span><span class="info-val">' + escHtml(p.giorno) + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Consegna</span><span class="info-val">' + escHtml(p.consegna) + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Telefono</span><span class="info-val">' + escHtml(p.telefono||'—') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Indirizzo</span><span class="info-val">' + escHtml(p.indirizzo||'—') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Inizio terapia</span><span class="info-val">' + escHtml(p.giornoInizio||'—') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Durata standard</span><span class="info-val">' + (p.durata ? escHtml(String(p.durata)) + ' giorni' : '—') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Curatela</span><span class="info-val">' + (p.curatele ? 'Sì' : 'No') + '</span></div>'
+    + '<div class="info-row"><span class="info-key">Stato</span><span class="info-val"><span style="font-weight:600;text-transform:uppercase;color:' + statoColor + '">' + escHtml(p.stato||'attivo') + '</span></span></div>';
+  if (p.allergie) {
+    html += '<div class="info-row" style="background:var(--danger-light);margin:0 -18px;padding:10px 18px;border-radius:8px">'
+      + '<span class="info-key" style="color:var(--danger)">⚠️ Allergie</span>'
+      + '<span class="info-val" style="color:var(--danger);font-weight:700">' + escHtml(p.allergie) + '</span></div>';
+  }
+  if (p.note) {
+    html += '<div style="margin-top:12px;padding:12px;background:var(--warning-light);border-radius:8px;font-size:14px;color:var(--warning)">📝 ' + escHtml(p.note) + '</div>';
+  }
+  document.getElementById('anagrafica-content').innerHTML = html;
+  // Mostra pulsante solo a Farmacista
+  var bar = document.getElementById('anagrafica-modifica-bar');
+  if (bar) bar.style.display = isFarmacista(currentOperatore) ? '' : 'none';
+}
+
+
+// ════════════════════════════════════════════
+// MODIFICA ANAGRAFICA PAZIENTE
+// ════════════════════════════════════════════
+function showModificaAnagrafica() {
+  if (!isFarmacista(currentOperatore)) {
+    showToast('Solo le farmaciste possono modificare l\'anagrafica', 'error'); return;
+  }
+  var p = getCP();
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    + '<div style="font-size:17px;font-weight:700">Modifica anagrafica</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">&#10005;</button>'
+    + '</div>'
+    + '<div class="form-row">'
+    + '<div class="form-group"><label class="form-label">Cognome *</label>'
+    + '<input class="form-input" id="ea-cognome" value="' + escHtml(p.cognome) + '"></div>'
+    + '<div class="form-group"><label class="form-label">Nome *</label>'
+    + '<input class="form-input" id="ea-nome" value="' + escHtml(p.nome) + '"></div></div>'
+    + '<div class="form-row">'
+    + '<div class="form-group"><label class="form-label">Data di nascita *</label>'
+    + '<input class="form-input" type="date" id="ea-ddn" value="' + p.ddn + '"></div>'
+    + '<div class="form-group"><label class="form-label">Medico</label>'
+    + '<input class="form-input" id="ea-medico" value="' + escHtml(p.medico||"") + '"></div></div>'
+    + '<div class="form-row">'
+    + '<div class="form-group"><label class="form-label">Giorno ritiro</label>'
+    + '<select class="form-select" id="ea-giorno">'
+    + ['Luned\u00ec','Marted\u00ec','Mercoled\u00ec','Gioved\u00ec','Venerd\u00ec','Sabato'].map(function(g){
+        return '<option' + (p.giorno===g?' selected':'') + '>'+ g +'</option>';
+      }).join('')
+    + '</select></div>'
+    + '<div class="form-group"><label class="form-label">Consegna</label>'
+    + '<select class="form-select" id="ea-consegna">'
+    + ['Ritiro in farmacia','Struttura esterna','Consegna a domicilio'].map(function(x){
+        return '<option' + (p.consegna===x?' selected':'') + '>' + x + '</option>';
+      }).join('')
+    + '</select></div></div>'
+    + '<div class="form-group"><label class="form-label">&#9888;&#65039; Allergie / Avvisi</label>'
+    + '<input class="form-input" id="ea-allergie" value="' + escHtml(p.allergie||"") + '" placeholder="es. Penicillina, Propofol..."></div>'
+    + '<div class="form-group"><label class="form-label">Note cliniche</label>'
+    + '<textarea class="form-textarea" id="ea-note">' + escHtml(p.note||"") + '</textarea></div>'
+    + '<div class="form-row">'
+    + '<div class="form-group"><label class="form-label">Telefono</label>'
+    + '<input class="form-input" id="ea-tel" value="' + escHtml(p.telefono||"") + '"></div>'
+    + '<div class="form-group"><label class="form-label">Indirizzo</label>'
+    + '<input class="form-input" id="ea-ind" value="' + escHtml(p.indirizzo||"") + '"></div></div>'
+    + '<div class="form-row">'
+    + '<div class="form-group"><label class="form-label">Inizio terapia</label>'
+    + '<input class="form-input" id="ea-inizio" value="' + escHtml(p.giornoInizio||"") + '" placeholder="es. luned\u00ec mattina"></div>'
+    + '<div class="form-group"><label class="form-label">Durata (giorni)</label>'
+    + '<input class="form-input" type="number" min="1" max="31" id="ea-durata" value="' + (p.durata||7) + '"></div></div>'
+    + '<div class="form-group" style="display:flex;align-items:center;gap:10px">'
+    + '<input type="checkbox" id="ea-curatele"' + (p.curatele?' checked':'') + ' style="width:20px;height:20px">'
+    + '<label for="ea-curatele" class="form-label" style="margin:0;cursor:pointer">Sotto curatela</label></div>'
+    + '<div class="form-group"><label class="form-label">Stato</label>'
+    + '<select class="form-select" id="ea-stato">'
+    + [{v:'attivo',l:'Attivo'},{v:'sospeso',l:'Sospeso'},{v:'dimesso',l:'Dimesso'}].map(function(s){
+        return '<option value="' + s.v + '"' + (( p.stato||'attivo')===s.v?' selected':'') + '>' + s.l + '</option>';
+      }).join('')
+    + '</select></div>'
+    + '<div style="display:flex;gap:10px;margin-top:16px">'
+    + '<button class="btn btn-ghost" style="flex:1" onclick="chiudiModal()">Annulla</button>'
+    + '<button class="btn btn-primary" style="flex:2" onclick="salvaAnagrafica()">&#10003; Salva</button>'
+    + '</div>';
+  mostraModal(html);
+}
+
+function salvaAnagrafica() {
+  var cognome = (document.getElementById('ea-cognome')||{value:''}).value.trim();
+  var nome    = (document.getElementById('ea-nome')||{value:''}).value.trim();
+  var ddn     = (document.getElementById('ea-ddn')||{value:''}).value;
+  if (!cognome || !nome || !ddn) { showToast('Cognome, nome e data di nascita sono obbligatori', 'error'); return; }
+  var p = getCP();
+  if (!p) { showToast('Errore: paziente non trovato', 'error'); return; }
+  p.cognome      = cognome;
+  p.nome         = nome;
+  p.ddn          = ddn;
+  p.medico       = (document.getElementById('ea-medico')||{value:''}).value.trim();
+  p.giorno       = (document.getElementById('ea-giorno')||{value:''}).value;
+  p.consegna     = (document.getElementById('ea-consegna')||{value:''}).value;
+  p.allergie     = (document.getElementById('ea-allergie')||{value:''}).value.trim();
+  p.note         = (document.getElementById('ea-note')||{value:''}).value.trim();
+  p.telefono     = (document.getElementById('ea-tel')||{value:''}).value.trim();
+  p.indirizzo    = (document.getElementById('ea-ind')||{value:''}).value.trim();
+  p.giornoInizio = (document.getElementById('ea-inizio')||{value:''}).value.trim();
+  p.durata       = (document.getElementById('ea-durata')||{value:'7'}).value;
+  p.curatele     = !!(document.getElementById('ea-curatele')||{}).checked;
+  p.stato        = (document.getElementById('ea-stato')||{value:'attivo'}).value;
+  // Registra nel log storico
+  p.storico.push({
+    tipo:'anagrafica', data:todayISO(), medico:'-',
+    azione:'Modifica anagrafica', doc:'-',
+    op: currentOperatore ? currentOperatore.sigla : '?', visto:'-'
+  });
+  sincronizzaPaziente(p).then(function(){
+    chiudiModal();
+    document.getElementById('pz-header-nome').textContent = p.cognome + ' ' + p.nome;
+    document.getElementById('pz-header-meta').textContent = formatDate(p.ddn) + ' · ' + formatAge(p.ddn);
+    renderAllergieBar('allergie-bar', p);
+    renderAnagrafica(p);
+    showToast('Anagrafica aggiornata', 'success');
+  }).catch(function(){
+    // toast di errore già mostrato da sincronizzaPaziente
+  });
+}
+// ════════════════════════════════════════════
+// STORICO — con dettaglio terapia
+// ════════════════════════════════════════════
+function renderStorico(p) {
+  var el = document.getElementById('storico-content');
+  if (!p.storico || !p.storico.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📜</div><p>Nessuna voce registrata</p></div>';
+    return;
+  }
+  el.innerHTML = p.storico.slice().reverse().map(function(s){
+    var tipo       = s.tipo || 'terapia';
+    var cls        = tipo === 'annullo' ? 'canceled' : tipo === 'preparazione' ? 'prep-entry' : tipo === 'consegna' ? 'consegna-entry' : '';
+    var icon       = tipo === 'consegna' ? '📦' : tipo === 'preparazione' ? '📋' : tipo === 'annullo' ? '⚠️' : '💊';
+    var hasMedico  = s.medico && s.medico !== '-';
+    var hasDoc     = s.doc && s.doc !== '-';
+    var hasVisto   = s.visto && s.visto !== '-';
+    var hasDetail  = tipo === 'terapia' && s.versione &&
+      (TERAPIE_STORICHE[p.id + '-v' + s.versione] || s.versione === p.versione);
+    var detailBtn  = hasDetail
+      ? '<div class="storico-actions"><button class="btn btn-sm btn-ghost" onclick="mostraDettaglioTerapia(\''
+        + p.id + '\',' + s.versione + ')">🔍 Vedi terapia v' + s.versione + '</button></div>'
+      : '';
+    return '<div class="storico-item ' + cls + '">'
+      + '<div class="storico-date">' + formatDate(s.data) + ' ' + icon
+      + (hasMedico ? ' · ' + escHtml(s.medico) : '')
+      + (hasDoc ? ' · ' + escHtml(s.doc) : '') + '</div>'
+      + '<div class="storico-action">' + escHtml(s.azione) + '</div>'
+      + '<div class="storico-detail">'
+      + (tipo === 'consegna' && s.ndosette ? 'N° scatola: <b>' + escHtml(String(s.ndosette)) + '</b> &middot; ' : '')
+      + (s.op && s.op !== '-' ? 'Op: <b>' + escHtml((OPERATORI.find(function(o){return o.sigla===s.op;})||{nome:s.op}).nome) + ' (' + escHtml(s.op) + ')</b>' : '')
+      + (hasVisto && s.visto !== '-' ? ' &middot; Visto: <b>' + escHtml((OPERATORI.find(function(o){return o.sigla===s.visto;})||{nome:s.visto}).nome) + ' (' + escHtml(s.visto) + ')</b>' : '')
+      + '</div>'
+      + detailBtn
+      + (s.link ? '<div style="padding:4px 12px 8px"><a href="' + escHtml(s.link) + '" target="_blank" style="font-size:12px;color:var(--primary,#2979ff)">🔗 ' + escHtml(s.link) + '</a></div>' : '')
+      + '</div>';
+  }).join('');
+}
+
+function mostraDettaglioTerapia(pazId, versione) {
+  var p = getPaziente(pazId);
+  var t = (versione === p.versione) ? p.terapia : (TERAPIE_STORICHE[pazId + '-v' + versione] || p.terapia);
+  var fotoHtml = '';
+  if (t.foto && t.foto.length) {
+    fotoHtml = '<div style="display:flex;align-items:center;gap:10px;margin:0 0 14px">'
+      + '<span style="font-size:12px;color:var(--text2);font-weight:600;white-space:nowrap">📷 Ricetta/Schema:</span>'
+      + t.foto.filter(Boolean).map(function(url, i) {
+          return '<a href="' + escHtml(url) + '" target="_blank" title="Apri foto ' + (i+1) + '">'
+            + '<img src="' + escHtml(url) + '" class="foto-thumb" alt="Foto ' + (i+1) + '">'
+            + '</a>';
+        }).join('')
+      + '</div>';
+  }
+  mostraModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+    + '<div><div class="modal-title" style="margin:0">Terapia v' + versione + '</div>'
+    + '<div style="font-size:12px;color:var(--text2);margin-top:2px">'
+    + escHtml(p.cognome) + ' ' + escHtml(p.nome) + ' · Schema del ' + formatDate(t.dataSchema) + '</div></div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + fotoHtml
+    + '<div style="overflow-x:auto"><table class="farmaci-table" style="min-width:320px">'
+    + buildTerapiaTable(t)
+    + '</table></div>'
+  );
+}
+
+// ════════════════════════════════════════════
+// LOGIN / LOGOUT / SESSION LOCK
+// ════════════════════════════════════════════
+function initLoginScreen() {
+  _loginSelectedSigla = '';
+  _loginPinBuffer = '';
+  var grid = document.getElementById('login-op-grid');
+  if (grid) {
+    grid.innerHTML = OPERATORI.filter(function(o){ return o.attivo !== false; })
+      .map(function(o){
+        var initials = o.sigla || o.nome.split(' ').map(function(w){ return w[0]; }).join('').slice(0,2).toUpperCase();
+        return '<button class="login-op-btn" id="op-btn-' + escHtml(o.sigla) + '" onclick="loginSelectOperatore(\'' + escJs(o.sigla) + '\')">'
+          + '<div class="login-op-initials">' + escHtml(initials) + '</div>'
+          + '<div class="login-op-name">' + escHtml(o.nome) + '</div>'
+          + '<div class="login-op-role">' + escHtml(o.ruolo || '') + '</div>'
+          + '</button>';
+      }).join('');
+  }
+  var pinSection = document.getElementById('login-pin-section');
+  if (pinSection) pinSection.style.display = 'none';
+  var opCard = document.getElementById('login-op-card');
+  if (opCard) opCard.style.display = '';
+  updateLoginDots();
+  document.getElementById('login-error').textContent = '';
+}
+
+function loginChangeOperatore() {
+  _loginSelectedSigla = '';
+  _loginPinBuffer = '';
+  updateLoginDots();
+  var pinSection = document.getElementById('login-pin-section');
+  if (pinSection) pinSection.style.display = 'none';
+  var opCard = document.getElementById('login-op-card');
+  if (opCard) opCard.style.display = '';
+  document.querySelectorAll('.login-op-btn').forEach(function(btn){ btn.classList.remove('selected'); });
+  document.getElementById('login-error').textContent = '';
+}
+
+function loginSelectOperatore(sigla) {
+  _loginSelectedSigla = sigla;
+  _loginPinBuffer = '';
+  updateLoginDots();
+  document.getElementById('login-error').textContent = '';
+  // Evidenzia il bottone selezionato
+  document.querySelectorAll('.login-op-btn').forEach(function(btn){ btn.classList.remove('selected'); });
+  var btn = document.getElementById('op-btn-' + sigla);
+  if (btn) btn.classList.add('selected');
+  // Mostra sezione PIN
+  var pinSection = document.getElementById('login-pin-section');
+  if (pinSection) { pinSection.style.display = ''; }
+  var opCard = document.getElementById('login-op-card');
+  if (opCard) opCard.style.display = 'none';
+  var op = OPERATORI.find(function(o){ return o.sigla === sigla; });
+  var label = document.getElementById('login-pin-label');
+  if (label && op) label.textContent = 'PIN — ' + op.nome;
+}
+
+function loginPinDigit(d) {
+  if (_loginPinBuffer.length >= 4) return;
+  _loginPinBuffer += d;
+  updateLoginDots();
+  if (_loginPinBuffer.length === 4) loginPinConfirm();
+}
+
+function loginPinClear() {
+  _loginPinBuffer = _loginPinBuffer.slice(0, -1);
+  updateLoginDots();
+}
+
+function updateLoginDots() {
+  for (var i = 0; i < 4; i++) {
+    var dot = document.getElementById('ld' + i);
+    if (dot) dot.className = 'pin-dot' + (i < _loginPinBuffer.length ? ' filled' : '');
+  }
+}
+
+async function attivaOperatore(op) {
+  currentOperatore = { sigla: op.sigla, nome: op.nome, ruolo: op.ruolo };
+  _loginPinBuffer = '';
+  _loginSelectedSigla = '';
+  updateLoginDots();
+  var errEl = document.getElementById('login-error');
+  if (errEl) errEl.textContent = '';
+  var opLine = document.getElementById('home-op-line');
+  if (opLine) { opLine.innerHTML = '&#128100; ' + escHtml(op.nome); opLine.style.display = ''; }
+  var logoutBtn = document.getElementById('home-logout-btn');
+  if (logoutBtn) logoutBtn.style.display = '';
+  var badge = document.getElementById('header-user-badge');
+  if (badge) badge.innerHTML = escHtml(op.nome) + ' (' + escHtml(op.ruolo || '') + ')';
+  applicaRuolo();
+  startSessionTimer();
+  await loadData();
+  showScreen('screen-home');
+  try { renderHome(); } catch (e) { console.error('Home render error after login:', e); }
+}
+
+function loginOperatoreDaAuth(user) {
+  if (!user || user.isAnonymous || !user.email || currentOperatore) return;
+  var found = OPERATORI.find(function(op) {
+    return op && op.attivo !== false && String(op.emailFirebase || '').toLowerCase() === String(user.email || '').toLowerCase();
+  });
+  if (!found) return;
+  attivaOperatore(found).then(function(){
+    showToast('Accesso da launcher: ' + found.nome, 'success');
+  });
+}
+
+async function loginPinConfirm() {
+  var sigla = _loginSelectedSigla;
+  var errEl = document.getElementById('login-error');
+
+  // Rate limiting
+  if (_rlBloccato()) {
+    var sec = _rlRimanente();
+    var min = Math.floor(sec/60), s = sec%60;
+    errEl.textContent = 'Troppi tentativi errati. Riprova tra ' + min + ':' + (s<10?'0':'')+s;
+    _loginPinBuffer = ''; updateLoginDots(); return;
+  }
+
+  if (!sigla) { errEl.textContent = 'Seleziona un operatore'; _loginPinBuffer = ''; updateLoginDots(); return; }
+  if (_loginPinBuffer.length < 4) { errEl.textContent = 'Inserisci 4 cifre'; return; }
+
+  var op = OPERATORI.find(function(o){ return o.sigla === sigla; });
+  if (!op) { errEl.textContent = 'Operatore non trovato'; _loginPinBuffer = ''; updateLoginDots(); return; }
+
+  if (!op.emailFirebase) {
+    errEl.textContent = 'Operatore senza account Firebase — contatta l\'admin';
+    _loginPinBuffer = ''; updateLoginDots(); return;
+  }
+
+  var hash = await sha256(_loginPinBuffer);
+
+  try {
+    await firebase.auth().signOut();
+    await firebase.auth().signInWithEmailAndPassword(op.emailFirebase, hash);
+  } catch(e) {
+    await firebase.auth().signInAnonymously().catch(function(){});
+    _rlRegistraErrore();
+    var o = _rlGet();
+    if (o.bloccatoAl) {
+      errEl.textContent = 'Troppi tentativi errati. Accesso bloccato per 5 minuti.';
+    } else {
+      var rimasti = PIN_MAX_TENTATIVI - (o.tentativi||0);
+      errEl.textContent = 'PIN errato — ' + rimasti + ' tentativ' + (rimasti===1?'o':'i') + ' rimanent' + (rimasti===1?'e':'i');
+    }
+    _loginPinBuffer = ''; updateLoginDots(); return;
+  }
+
+  _rlReset();
+
+  await attivaOperatore(op);
+}
+
+function logout() {
+  try { firebase.auth().signOut().then(function(){ return firebase.auth().signInAnonymously(); }).catch(function(){}); } catch(e) {}
+  currentOperatore = null;
+  _sessionState = 'active';
+  clearTimeout(_sessionTimer);
+  clearTimeout(_lockTimer);
+  resetPreparazioneFlow();
+  var overlay = document.getElementById('lock-overlay');
+  if (overlay) overlay.style.display = 'none';
+  var badge = document.getElementById('header-user-badge');
+  if (badge) badge.textContent = '—';
+  var opLine = document.getElementById('home-op-line');
+  if (opLine) opLine.style.display = 'none';
+  var logoutBtn = document.getElementById('home-logout-btn');
+  if (logoutBtn) logoutBtn.style.display = 'none';
+  initLoginScreen();
+  showScreen('screen-login');
+}
+
+function doLogoutDosettes() {
+  try { firebase.auth().signOut().then(function(){ return firebase.auth().signInAnonymously(); }).catch(function(){}); } catch(e) {}
+  var overlay = document.getElementById('lock-overlay');
+  if (overlay) overlay.style.display = 'none';
+  currentOperatore = null;
+  _sessionState = 'active';
+  clearTimeout(_sessionTimer);
+  clearTimeout(_lockTimer);
+  resetPreparazioneFlow();
+  var opLine = document.getElementById('home-op-line');
+  if (opLine) opLine.style.display = 'none';
+  var logoutBtn = document.getElementById('home-logout-btn');
+  if (logoutBtn) logoutBtn.style.display = 'none';
+  var badge = document.getElementById('header-user-badge');
+  if (badge) badge.textContent = '—';
+  document.getElementById('terminata-close-msg') && (document.getElementById('terminata-close-msg').style.display = 'none');
+  showScreen('screen-terminata');
+}
+
+function doCloseWindowDosettes() {
+  window.open('', '_self', '');
+  window.close();
+  setTimeout(function() {
+    var msg = document.getElementById('terminata-close-msg');
+    if (msg) msg.style.display = '';
+  }, 500);
+}
+
+function doNuovaSessioneDosettes() {
+  initLoginScreen();
+  showScreen('screen-login');
+}
+
+function isFarmacista(op) {
+  if (!op) return false;
+  var r = op.ruolo || '';
+  return r === 'Farmacista' || r === 'farmacista' || r === 'amministratore';
+}
+
+function applicaRuolo() {
+  if (!currentOperatore) return;
+  var btnMod = document.getElementById('btn-modifica-terapia');
+  if (btnMod) btnMod.style.display = isFarmacista(currentOperatore) ? '' : 'none';
+}
+
+// ===== SESSION LOCK: 5 min inattività -> LOCK, 30 min -> LOGOUT =====
+function startSessionTimer() {
+  clearTimeout(_sessionTimer);
+  _sessionTimer = setTimeout(function() {
+    // Auto-salva preparazione in corso se c'è almeno la firma di riempimento
+    if (firmaRiempimento && prepCorrente) {
+      salvaPreparazioneAuto();
+    }
+    lockSession();
+  }, SESSION_TIMEOUT);
+}
+
+function resetSessionTimer() {
+  if (!currentOperatore || _sessionState === 'locked') return;
+  startSessionTimer();
+}
+
+document.addEventListener('touchstart', resetSessionTimer, { passive: true });
+document.addEventListener('click', resetSessionTimer);
+document.addEventListener('keydown', resetSessionTimer);
+
+function buildPreparazionePayload(p, esito) {
+  if (!prepCorrente || !firmaRiempimento) return null;
+  var stato = esito;
+  if (!stato || stato === 'AUTO-SALVATO') stato = 'da_controllare';
+  var periodo = (prepCorrente.dal && prepCorrente.al)
+    ? (formatDate(prepCorrente.dal) + ' – ' + formatDate(prepCorrente.al))
+    : (prepCorrente.periodoTesto || '');
+  return {
+    id:                   prepCorrente.id,
+    data:                 prepCorrente.dataCreazione || now(),
+    dataUltimoAggiornamento: now(),
+    periodo:              periodo,
+    periodoDal:           prepCorrente.dal || '',
+    periodoAl:            prepCorrente.al || '',
+    numeroDosette:        prepCorrente.numeroDosette || '',
+    firmaRiempimento:     firmaRiempimento,
+    firmaControllo:       firmaControllo || null,
+    versione:             p.versione,
+    checklistCompletata:  Array.from(_checkedItems || new Set()),
+    checklistAutoCompletata: Array.from(_checkedAuto || new Set()),
+    totalItemsChecklist:  (_checklistItems || []).length + (((p.terapia || {}).autogestiti || []).length),
+    esito:                stato.toUpperCase(),
+    stato:                stato,
+    controlloEccezionale: firmaControllo && firmaControllo.controlloEccezionale ? {
+      sigla: firmaControllo.sigla,
+      nome: firmaControllo.nome,
+      motivo: firmaControllo.motivoEccezionale || '',
+      ts: firmaControllo.ts || now()
+    } : null,
+    annullata:            false,
+    autoSalvataAlBlocco:  esito === 'AUTO-SALVATO',
+    inCorso:              stato === 'da_controllare'
+  };
+}
+
+function upsertPreparazione(p, prep) {
+  if (!prep) return;
+  var idx = (p.preparazioni || []).findIndex(function(pr){ return pr.id === prep.id; });
+  if (idx >= 0) {
+    p.preparazioni[idx] = Object.assign({}, p.preparazioni[idx], prep);
+  } else {
+    p.preparazioni.push(prep);
+  }
+}
+
+function registraStoricoPreparazione(p, prep, opSigla, vistoSigla, isUpdate) {
+  var azione = 'Preparazione dosette N° ' + (prep.numeroDosette || '?') + ' · ' + prep.periodo;
+  if (prep.stato === 'da_dispensare') azione += ' · controllata';
+  else azione += ' · preparata';
+  if (prep.controlloEccezionale) azione += ' [controllo eccezionale]';
+  if (prep.autoSalvataAlBlocco) azione += ' [auto-salvato al blocco]';
+  var entry = {
+    tipo:'preparazione', data:todayISO(), medico:'-',
+    azione: azione,
+    doc:'checklist', op: opSigla || '-', visto: vistoSigla || '-'
+  };
+  if (!p.storico) p.storico = [];
+  var idx = p.storico.findIndex(function(s){ return s.tipo === 'preparazione' && s.prepId === prep.id; });
+  entry.prepId = prep.id;
+  if (idx >= 0) {
+    p.storico[idx] = Object.assign({}, p.storico[idx], entry);
+  } else {
+    p.storico.push(entry);
+  }
+}
+
+
+// ════════════════════════════════════════════
+// AUTO-SALVATAGGIO al timeout
+// ════════════════════════════════════════════
+function salvaPreparazioneAuto() {
+  if (!prepCorrente || !firmaRiempimento) return;
+  var p = getCP();
+  if (!p) return;
+  // Non promuovere a da_dispensare se manca il motivo del controllo eccezionale
+  var inControl = checklistMode === 'control' && firmaControllo;
+  var eccezionaleSenzaMotivo = inControl && controlloEccezionaleRequired && !firmaControllo.motivoEccezionale;
+  var autoState = (inControl && !eccezionaleSenzaMotivo) ? 'da_dispensare' : 'AUTO-SALVATO';
+  var prep = buildPreparazionePayload(p, autoState);
+  if (!prep) return;
+  if (inControl && !eccezionaleSenzaMotivo) prep.autoSalvataAlBlocco = true;
+  upsertPreparazione(p, prep);
+  registraStoricoPreparazione(p, prep, firmaRiempimento.sigla, firmaControllo ? firmaControllo.sigla : '-', true);
+  sincronizzaPaziente(p);
+  showToast('Preparazione auto-salvata', 'success');
+}
+
+// ════════════════════════════════════════════
+// LOCK / UNLOCK sessione
+// ════════════════════════════════════════════
+function lockSession() {
+  _sessionState = 'locked';
+  _lockPinBuf = '';
+  var overlay = document.getElementById('lock-overlay');
+  if (!overlay) return;
+  // Popola select operatori nel lock
+  var sel = document.getElementById('lock-operatore');
+  sel.innerHTML = '<option value="">— Seleziona operatore —</option>'
+    + OPERATORI.filter(function(o){ return o.attivo !== false; })
+               .map(function(o){ return '<option value="' + escHtml(o.sigla) + '">' + escHtml(o.nome) + '</option>'; })
+               .join('');
+  // Pre-seleziona l'operatore corrente
+  if (currentOperatore) sel.value = currentOperatore.sigla;
+  updateLockPinDots();
+  overlay.style.display = 'flex';
+  document.getElementById('lock-error').textContent = '';
+  document.getElementById('lock-subtitle').textContent =
+    currentOperatore ? ('Bloccato come ' + currentOperatore.nome + ' — reinserisci PIN') : 'Inserisci PIN per sbloccare';
+  // Avvia timer logout definitivo a 30 minuti
+  clearTimeout(_lockTimer);
+  _lockTimer = setTimeout(function() {
+    showToast('Sessione scaduta dopo 30 minuti di blocco', 'error');
+    doLogoutDosettes();
+  }, LOCK_TIMEOUT);
+}
+
+function unlockSession(op) {
+  clearTimeout(_lockTimer);
+  _sessionState = 'active';
+  currentOperatore = { sigla: op.sigla, nome: op.nome, ruolo: op.ruolo };
+  document.getElementById('lock-overlay').style.display = 'none';
+  var opLine = document.getElementById('home-op-line');
+  if (opLine) { opLine.innerHTML = '&#128100; ' + escHtml(op.nome); opLine.style.display = ''; }
+  var logoutBtn = document.getElementById('home-logout-btn');
+  if (logoutBtn) logoutBtn.style.display = '';
+  var badge = document.getElementById('header-user-badge');
+  if (badge) badge.innerHTML = escHtml(op.nome);
+  applicaRuolo();
+  startSessionTimer();
+  showToast('Bentornat' + (op.nome.slice(-1).toLowerCase() === 'a' ? 'a' : 'o') + ' ' + op.nome, 'success');
+}
+
+function lockPinDigit(d) {
+  if (_lockPinBuf.length >= 4) return;
+  _lockPinBuf += d;
+  updateLockPinDots();
+  if (_lockPinBuf.length === 4) lockPinConfirm();
+}
+
+function lockPinClear() {
+  _lockPinBuf = _lockPinBuf.slice(0, -1);
+  updateLockPinDots();
+  document.getElementById('lock-error').textContent = '';
+}
+
+function updateLockPinDots() {
+  for (var i = 0; i < 4; i++) {
+    var d = document.getElementById('lk' + i);
+    if (d) d.classList.toggle('filled', i < _lockPinBuf.length);
+  }
+}
+
+async function lockPinConfirm() {
+  var sigla = document.getElementById('lock-operatore').value;
+  var errEl = document.getElementById('lock-error');
+  if (!sigla) { errEl.textContent = 'Seleziona operatore'; _lockPinBuf = ''; updateLockPinDots(); return; }
+  if (_lockPinBuf.length < 4) { errEl.textContent = 'PIN a 4 cifre'; return; }
+  var op = OPERATORI.find(function(o){ return o.sigla === sigla; });
+  if (!op) { errEl.textContent = 'Operatore non trovato'; _lockPinBuf = ''; updateLockPinDots(); return; }
+  var pin = _lockPinBuf;
+  var ok = false;
+  if (op.pinHash) {
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+    var hash = Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    ok = (hash === op.pinHash);
+  }
+  if (!ok && op.emailFirebase) {
+    try {
+      var fbHash = await sha256(pin);
+      await firebase.auth().signOut();
+      await firebase.auth().signInWithEmailAndPassword(op.emailFirebase, fbHash);
+      ok = true;
+      loadData().catch(function(){});
+    } catch(e) {
+      ok = false;
+      firebase.auth().signInAnonymously().catch(function(){});
+    }
+  }
+  _lockPinBuf = ''; updateLockPinDots();
+  if (ok) {
+    if (currentOperatore && sigla !== currentOperatore.sigla) {
+      errEl.textContent = 'Operatore diverso dalla sessione bloccata — eseguo logout';
+      setTimeout(function(){ logout(); }, 300);
+      return;
+    }
+    unlockSession(op);
+  } else {
+    errEl.textContent = 'PIN errato';
+    for (var i = 0; i < 4; i++) {
+      var dd = document.getElementById('lk' + i);
+      if (dd) { dd.classList.add('error'); setTimeout(function(x){ return function(){ x.classList.remove('error'); }; }(dd), 600); }
+    }
+  }
+}
+
+// ════════════════════════════════════════════
+// CHECKLIST
+// ════════════════════════════════════════════
+function aggiornaDatFine() {
+  var dalEl = document.getElementById('prep-dal');
+  var alEl  = document.getElementById('prep-al');
+  if (!dalEl || !dalEl.value) return;
+  var p = getCP();
+  var durata = (p && p.durata) ? parseInt(p.durata) : 7;
+  if (isNaN(durata) || durata < 1) durata = 7;
+  // Parsing esplicito per evitare interpretazione UTC (new Date("yyyy-mm-dd") è UTC)
+  var parts = dalEl.value.split('-');
+  var dal = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  dal.setDate(dal.getDate() + durata - 1);
+  var mm = String(dal.getMonth() + 1).padStart(2, '0');
+  var dd = String(dal.getDate()).padStart(2, '0');
+  alEl.value = dal.getFullYear() + '-' + mm + '-' + dd;
+}
+
+function avviaChecklist() {
+  var dal = document.getElementById('prep-dal').value;
+  var al  = document.getElementById('prep-al').value;
+  if (!dal || !al) { showToast('Inserisci il periodo coperto', 'error'); return; }
+  if (!currentOperatore) { logout(); return; }
+  var numDosette = (document.getElementById('prep-numDosette') || {value: ''}).value;
+  prepCorrente = {id:'PREP' + Date.now(), dataCreazione: now(), dal: dal, al: al, numeroDosette: numDosette};
+  checklistMode = 'prepare';
+  var p = getCP();
+  firmaRiempimento = currentOperatorSignature(); firmaControllo = null;
+  controlloEccezionaleRequired = false;
+  _checkedFissi = new Set(); _checkedAuto = new Set();
+  _checkedItems = new Set();
+  document.getElementById('checklist-subtitle').textContent =
+    p.cognome + ' ' + p.nome + ' · ' + formatDate(dal) + ' – ' + formatDate(al);
+  renderAllergieBar('allergie-bar-prep', p);
+  renderChecklist(p);
+  showScreen('screen-checklist');
+}
+
+function renderChecklist(p) {
+  var t = p.terapia;
+  var momentiKey   = ['mat', 'mez', 'ser', 'not'];
+  var momentiLabel = ['Mattino', 'Pranzo', 'Sera', 'Notte'];
+
+  // Costruisce array piatto items per farmaco x momento (solo dose > 0)
+  _checklistItems = [];
+  momentiKey.forEach(function(mom, mi) {
+    t.fissi.forEach(function(f, fi) {
+      var dose = f[mom];
+      if (dose && +dose !== 0) {
+        _checklistItems.push({
+          id:          fi + '_' + mom,
+          farmacoNome: f.nome,
+          momento:     momentiLabel[mi],
+          dose:        dose,
+          note:        f.note || ''
+        });
+      }
+    });
+  });
+
+  // ── Totali compresse per fascia oraria ──
+  var totM=0, totMez=0, totS=0, totN=0;
+  (t.fissi||[]).forEach(function(f){
+    if (f.sospeso) return;
+    totM   += parseFloat(f.mat)||0;
+    totMez += parseFloat(f.mez)||0;
+    totS   += parseFloat(f.ser)||0;
+    totN   += parseFloat(f.not)||0;
+  });
+  var _fmt = function(v){ return v>0 ? (v%1===0?String(v):v.toFixed(2)) : '—'; };
+  var totEl = document.getElementById('checklist-totali');
+  if (totEl) totEl.innerHTML =
+    '<div style="display:flex;gap:6px;background:var(--accent-light);border:1.5px solid var(--accent);'
+    +'border-radius:10px;padding:10px 12px;margin-bottom:12px;align-items:center">'
+    +'<div style="font-size:10px;font-weight:700;color:var(--accent-dark);letter-spacing:.5px;'
+    +'white-space:nowrap;margin-right:4px">TOT. CPR</div>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text2)">Mat</div>'
+    +'<div style="font-size:17px;font-weight:800;color:var(--accent-dark)">'+_fmt(totM)+'</div></div>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text2)">Mez</div>'
+    +'<div style="font-size:17px;font-weight:800;color:var(--accent-dark)">'+_fmt(totMez)+'</div></div>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text2)">Sera</div>'
+    +'<div style="font-size:17px;font-weight:800;color:var(--accent-dark)">'+_fmt(totS)+'</div></div>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:9px;color:var(--text2)">Not</div>'
+    +'<div style="font-size:17px;font-weight:800;color:var(--accent-dark)">'+_fmt(totN)+'</div></div>'
+    +'</div>';
+
+  // Render raggruppato per momento
+  var html = '';
+  momentiKey.forEach(function(mom, mi) {
+    var items = _checklistItems.filter(function(item){ return item.id.endsWith('_' + mom); });
+    if (!items.length) return;
+    html += '<div class="section-header" style="margin-top:10px;">'
+          + '<span class="section-title" style="font-size:14px;color:var(--text2)">&#9200; ' + momentiLabel[mi] + '</span>'
+          + '</div>';
+    items.forEach(function(item) {
+      html += '<div class="checklist-item" id="ci-' + item.id + '" onclick="toggleCheck(\'' + item.id + '\')">';
+      html += '<div class="checklist-checkbox" id="cb-' + item.id + '"></div>';
+      html += '<div class="checklist-text">';
+      html += '<div class="checklist-farmaco">' + escHtml(item.farmacoNome || '') + '</div>';
+      html += '<div class="checklist-dose">' + escHtml(String(item.dose || '')) + (item.note ? ' · ' + escHtml(item.note) : '') + '</div>';
+      html += '</div></div>';
+    });
+  });
+  document.getElementById('checklist-fissi').innerHTML = html || '<div style="color:var(--text3);padding:16px;text-align:center">Nessun farmaco fisso con dose assegnata.</div>';
+
+  var autoSec = document.getElementById('checklist-autogestiti-section');
+  if (t.autogestiti.length) {
+    autoSec.style.display = '';
+    document.getElementById('checklist-autogestiti').innerHTML = t.autogestiti.map(function(f, i){
+      return '<div class="checklist-item" id="ca-' + i + '" onclick="toggleCheckAuto(' + i + ')">'
+        + '<div class="checklist-checkbox" id="cba-' + i + '"></div>'
+        + '<div class="checklist-text">'
+        + '<div class="checklist-farmaco">' + escHtml(f.nome) + '</div>'
+        + '<div class="checklist-dose">' + escHtml(f.istruzioni || '') + '</div>'
+        + '</div></div>';
+    }).join('');
+  } else {
+    autoSec.style.display = 'none';
+  }
+
+  renderChecklistSelections();
+  updateProgress();
+  updateChecklistWorkflowUI();
+}
+
+function toggleCheck(id) {
+  var item = document.getElementById('ci-' + id);
+  var cb   = document.getElementById('cb-' + id);
+  if (_checkedItems.has(id)) {
+    _checkedItems.delete(id); item.classList.remove('checked'); cb.textContent = '';
+  } else {
+    _checkedItems.add(id);   item.classList.add('checked');    cb.textContent = '✓';
+  }
+  _checkedFissi = _checkedItems;
+  updateProgress();
+}
+function toggleCheckAuto(i) {
+  var item = document.getElementById('ca-' + i);
+  var cb   = document.getElementById('cba-' + i);
+  if (_checkedAuto.has(i)) {
+    _checkedAuto.delete(i); item.classList.remove('checked'); cb.textContent = '';
+  } else {
+    _checkedAuto.add(i);   item.classList.add('checked');    cb.textContent = '✓';
+  }
+  updateProgress();
+}
+function updateProgress() {
+  var p = getCP();
+  var total   = _checklistItems.length + (((p && p.terapia) ? (p.terapia.autogestiti || []).length : 0));
+  var checked = _checkedItems.size + _checkedAuto.size;
+  var pct = total > 0 ? Math.round(checked / total * 100) : 0;
+  document.getElementById('progress-fill').style.width   = pct + '%';
+  document.getElementById('progress-label').textContent  = checked + ' di ' + total + ' completati';
+  document.getElementById('check-progress').textContent  = checked + '/' + total;
+}
+
+// ════════════════════════════════════════════
+// PIN SYSTEM
+// ════════════════════════════════════════════
+function aggiornaSelectOperatori(subtitle) {
+  document.getElementById('pin-error').textContent = '';
+  var sel = document.getElementById('pin-operatore');
+  sel.innerHTML = '<option value="">— Seleziona operatore —</option>'
+    + OPERATORI.filter(function(o){ return o.attivo !== false; })
+               .map(function(o){
+                 return '<option value="' + escHtml(o.sigla) + '">' + escHtml(o.nome) + ' · ' + escHtml(o.ruolo) + ' (' + escHtml(o.sigla) + ')</option>';
+               }).join('');
+  if (subtitle) document.getElementById('pin-subtitle').textContent = subtitle;
+}
+
+function finalizzaFirmaControllo(firma, controlloEccezionale) {
+  firmaControllo = Object.assign({}, firma);
+  if (controlloEccezionale) {
+    firmaControllo.controlloEccezionale = true;
+    firmaControllo.motivoEccezionale = controlloEccezionale.motivo;
+  }
+  updateChecklistWorkflowUI();
+  showToast(controlloEccezionale ? 'Controllo eccezionale registrato ✓' : 'Firma controllo registrata ✓', 'success');
+}
+
+function apriControlloEccezionale(firma) {
+  controlloEccezionalePending = firma;
+  mostraModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0;color:#b26a00">⚠️ Controllo eccezionale</div>'
+    + '<button onclick="chiudiModal();controlloEccezionalePending=null" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div style="font-size:14px;color:var(--text2);margin-bottom:14px">Il controllore coincide con il riempitore. Procedi solo in casi eccezionali e registra il motivo.</div>'
+    + '<div class="prep-note-box" style="margin-bottom:14px;background:#fff8e1;border-color:#ffd54f;color:#8d6e63">'
+    + '<b>Operatore:</b> ' + escHtml(firma.nome) + ' (' + escHtml(firma.sigla) + ')</div>'
+    + '<div class="form-group" style="margin-bottom:18px">'
+    + '<label class="form-label">Motivo obbligatorio</label>'
+    + '<textarea id="controllo-eccezionale-motivo" class="form-input" style="min-height:96px;resize:vertical" placeholder="Spiega perché il controllo viene firmato dalla stessa persona"></textarea>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn btn-ghost" style="flex:1" onclick="chiudiModal();controlloEccezionalePending=null">Annulla</button>'
+    + '<button class="btn btn-primary" style="flex:1" onclick="confermaControlloEccezionale()">Conferma eccezione</button>'
+    + '</div>'
+  );
+}
+
+function confermaControlloEccezionale() {
+  var motivo = ((document.getElementById('controllo-eccezionale-motivo') || {}).value || '').trim();
+  if (!motivo) { showToast('Inserisci il motivo del controllo eccezionale', 'error'); return; }
+  if (!controlloEccezionalePending) { chiudiModal(); return; }
+  firmaControllo = Object.assign({}, controlloEccezionalePending, {
+    controlloEccezionale: true,
+    motivoEccezionale: motivo
+  });
+  controlloEccezionalePending = null;
+  chiudiModal();
+  updateChecklistWorkflowUI();
+  showToast('Controllo eccezionale registrato ✓', 'success');
+}
+
+function richiediFirma(tipo) {
+  pinBuffer   = '';
+  pinCallback = tipo;
+  var subtitles = {
+    controllo:   'Firma di controllo (persona diversa dal riempitore)',
+    modificaTerapia: '🔒 Solo Farmacisti — inserisci PIN per autorizzare la modifica terapia'
+  };
+  aggiornaSelectOperatori(subtitles[tipo] || 'Inserisci PIN');
+  updatePinDots();
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+function confermaFirmaRiempimento() {
+  if (!currentOperatore) { logout(); return; }
+  mostraModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0">✍️ Firma riempimento</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div style="font-size:15px;margin-bottom:20px;text-align:center">Confermi come <b>' + escHtml(currentOperatore.nome) + '</b> (' + escHtml(currentOperatore.sigla) + ')?</div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn btn-ghost" style="flex:1" onclick="chiudiModal()">Annulla</button>'
+    + '<button class="btn btn-primary" style="flex:1" onclick="confermFirmaRiempimento()">✅ Conferma</button>'
+    + '</div>'
+  );
+}
+
+function confermFirmaRiempimento() {
+  firmaRiempimento = currentOperatorSignature();
+  chiudiModal();
+  updateChecklistWorkflowUI();
+}
+
+function pinKey(k) {
+  if (k === 'del') {
+    pinBuffer = pinBuffer.slice(0, -1);
+  } else if (k === 'ok') {
+    verificaPin(); return;
+  } else if (pinBuffer.length < 4) {
+    pinBuffer += k;
+  }
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(verificaPin, 150);
+}
+
+function updatePinDots() {
+  document.querySelectorAll('.pin-dot').forEach(function(d, i){
+    d.classList.toggle('filled', i < pinBuffer.length);
+    d.classList.remove('error');
+  });
+}
+
+async function verificaPin() {
+  var sigla = document.getElementById('pin-operatore').value;
+  if (!sigla) { document.getElementById('pin-error').textContent = 'Seleziona il tuo nome'; return; }
+  var op = OPERATORI.find(function(o){ return o.sigla === sigla; });
+  if (!op) return;
+
+  var pinOk = false;
+  if (op.pinHash) {
+    var hashCalcolato = await sha256(pinBuffer);
+    pinOk = (hashCalcolato === op.pinHash);
+  } else {
+    errorePin('❌ Operatore senza PIN — contatta l\'admin'); return;
+  }
+  if (!pinOk) { errorePin('❌ PIN errato'); return; }
+
+  var firma = { nome: op.nome, sigla: op.sigla, ruolo: op.ruolo || '', ts: now() };
+  chiudiPin();
+
+  // Dispatcher in base al callback
+  if (pinCallback === 'modificaTerapia') {
+    if (!isFarmacista(op)) { errorePin('❌ Solo i Farmacisti possono modificare la terapia'); return; }
+    window._autorizModifica = true; chiudiPin(); showModificaTerapia(); return;
+  }
+  if (pinCallback === 'riempimento') {
+    firmaRiempimento = firma;
+    updateChecklistWorkflowUI();
+    showToast('Firma riempimento registrata ✓', 'success');
+
+  } else if (pinCallback === 'controllo') {
+    if (firmaRiempimento && firmaRiempimento.sigla === firma.sigla) {
+      apriControlloEccezionale(firma);
+      return;
+    }
+    finalizzaFirmaControllo(firma, null);
+
+  } else if (pinCallback && pinCallback.indexOf('consegna:') === 0) {
+    consegnaFirma = firma;
+    var wrapC = document.getElementById('cons-firma-wrap');
+    if (wrapC) {
+      var prepIdC = pinCallback.split(':')[1];
+      wrapC.innerHTML = firmaBox(firma, '📦')
+        + '<button class="btn btn-primary btn-full" style="margin-top:12px" '
+        + 'onclick="salvaConsegna(consegnaFirma)">✅ Salva consegna</button>';
+    }
+
+  } else if (pinCallback && pinCallback.indexOf('annullo:') === 0) {
+    annulloFirma = firma;
+    var wrapA = document.getElementById('annullo-firma-wrap');
+    if (wrapA) {
+      wrapA.innerHTML = firmaBox(firma, '🗑')
+        + '<button class="btn btn-danger btn-full" style="margin-top:12px" '
+        + 'onclick="confermAnnullo(annulloFirma)">✅ Conferma annullamento</button>';
+    }
+  }
+}
+
+function errorePin(msg) {
+  document.getElementById('pin-error').textContent = msg;
+  document.querySelectorAll('.pin-dot').forEach(function(d){ d.classList.add('error'); });
+  pinBuffer = '';
+  setTimeout(updatePinDots, 800);
+}
+
+function firmaBox(f, icon) {
+  return '<div class="firma-confirmed">'
+    + '<span class="firma-icon">' + icon + '</span>'
+    + '<div class="firma-info">'
+    + '<div class="firma-nome">' + escHtml(f.nome) + ' (' + escHtml(f.sigla) + ')' + (f.ruolo ? ' · ' + escHtml(f.ruolo) : '') + '</div>'
+    + '<div class="firma-ts">' + escHtml(f.ts || '') + '</div>'
+    + '</div></div>';
+}
+
+function chiudiPin() {
+  document.getElementById('pin-overlay').style.display = 'none';
+  pinBuffer = '';
+}
+
+// ════════════════════════════════════════════
+// COMPLETA PREPARAZIONE
+// ════════════════════════════════════════════
+function completaPreparazione() {
+  var p = getCP();
+  if (!p) { showToast('Errore: paziente non trovato', 'error'); return; }
+  if (!firmaRiempimento) { showToast('Manca la firma di riempimento', 'error'); return; }
+  var statoTarget = checklistMode === 'control' ? 'da_dispensare' : 'da_controllare';
+  if (statoTarget === 'da_dispensare' && !firmaControllo) { showToast('Manca la firma di controllo', 'error'); return; }
+  if (statoTarget === 'da_dispensare' && controlloEccezionaleRequired) {
+    var motivoEccezionale = ((document.getElementById('controllo-eccezionale-motivo-inline') || {}).value || '').trim();
+    if (!motivoEccezionale) { showToast('Inserisci il motivo del controllo eccezionale', 'error'); return; }
+    firmaControllo.controlloEccezionale = true;
+    firmaControllo.motivoEccezionale = motivoEccezionale;
+  }
+  var prep = buildPreparazionePayload(p, statoTarget);
+  if (!prep) { showToast('Preparazione non valida', 'error'); return; }
+  var btn = document.querySelector('#btn-completa-prep button');
+  if (btn) btn.disabled = true;
+  upsertPreparazione(p, prep);
+  registraStoricoPreparazione(p, prep, firmaRiempimento ? firmaRiempimento.sigla : '-', firmaControllo ? firmaControllo.sigla : '-', true);
+  sincronizzaPaziente(p).then(function(){
+    renderPreparazione(p);
+    renderHome();
+    resetPreparazioneFlow();
+    if (statoTarget === 'da_controllare') {
+      showStepCompletion('Preparazione salvata correttamente. Effettuare un nuovo login per il controllo.');
+      return;
+    }
+    showStepCompletion('Controllo salvato correttamente. Effettuare un nuovo login per la dispensazione.');
+  }).catch(function(){
+    if (btn) btn.disabled = false;
+    // toast già mostrato da sincronizzaPaziente — l'utente rimane sulla schermata per riprovare
+  });
+}
+
+// ════════════════════════════════════════════
+// MODIFICA TERAPIA
+// ════════════════════════════════════════════
+function showModificaTerapia() {
+  if (!window._autorizModifica) { richiediFirma('modificaTerapia'); return; }
+  window._autorizModifica = false;
+  var p = getCP();
+  editFissi       = p.terapia.fissi.map(function(f){ return Object.assign({}, f); });
+  editAutogestiti = p.terapia.autogestiti.map(function(f){ return Object.assign({}, f); });
+  editRiserva     = p.terapia.riserva.map(function(f){ return Object.assign({}, f); });
+  _editFoto       = (p.terapia.foto || []).map(function(url){ return { storageUrl: url }; });
+  window._editTerapiaOriginale = JSON.stringify({ fissi: editFissi, auto: editAutogestiti, riserva: editRiserva });
+  document.getElementById('motivo-modifica').value = '';
+  document.getElementById('edit-medico').value     = p.medico;
+  renderEditSection('fisso'); renderEditSection('autogestito'); renderEditSection('riserva');
+  renderEditFoto();
+  showScreen('screen-modifica-terapia');
+}
+
+function confermaEsciModificaTerapia() {
+  var corrente = JSON.stringify({ fissi: editFissi, auto: editAutogestiti, riserva: editRiserva });
+  var motivo = (document.getElementById('motivo-modifica') || {}).value || '';
+  if (corrente !== window._editTerapiaOriginale || motivo.trim()) {
+    mostraModal(
+      '<div style="text-align:center;padding:8px 0">'
+      + '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'
+      + '<div style="font-size:17px;font-weight:700;margin-bottom:8px">Modifiche non salvate</div>'
+      + '<div style="font-size:14px;color:var(--text2);margin-bottom:24px">Se esci ora le modifiche alla terapia andranno perse.</div>'
+      + '<div style="display:flex;gap:10px">'
+      + '<button class="btn btn-ghost" style="flex:1" onclick="chiudiModal()">Rimani</button>'
+      + '<button class="btn btn-danger" style="flex:1" onclick="chiudiModal();_editFoto.forEach(function(ef){if(ef.previewUrl)URL.revokeObjectURL(ef.previewUrl);});_editFoto=[];editFissi=[];editAutogestiti=[];editRiserva=[];showScreen(\'screen-paziente\')">Esci senza salvare</button>'
+      + '</div></div>'
+    );
+  } else {
+    showScreen('screen-paziente');
+  }
+}
+
+function renderEditSection(tipo) {
+  var arr   = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
+  var elId  = tipo === 'fisso' ? 'edit-fissi' : tipo === 'autogestito' ? 'edit-autogestiti' : 'edit-riserva';
+  var el    = document.getElementById(elId);
+  if (!arr.length) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:14px;text-align:center;padding:10px">Nessun farmaco · usa + Aggiungi</div>';
+    return;
+  }
+  el.innerHTML = arr.map(function(f, i){
+    if (tipo === 'fisso') {
+      return '<div class="farmaco-edit-card">'
+        + '<button class="farmaco-delete-btn" onclick="eliminaFarmaco(\'' + tipo + '\',' + i + ')">✕</button>'
+        + '<input type="text" class="form-input" style="margin-bottom:8px;font-weight:600" value="' + escHtml(f.nome) + '"'
+        + ' onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'nome\',this.value)"'
+        + ' placeholder="Nome farmaco + dosaggio">'
+        + '<div class="dose-grid">'
+        + ['mat','mez','ser','not'].map(function(d, di){
+            return '<div class="dose-cell">'
+              + '<div class="dose-label">' + ['Mattino','Mezzo','Sera','Notte'][di] + '</div>'
+              + '<input type="number" class="dose-input" min="0" max="10" step="0.5" value="' + (f[d] || '') + '"'
+              + ' placeholder="0" onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'' + d + '\',this.value)">'
+              + '</div>';
+          }).join('')
+        + '</div>'
+        + '<input type="text" class="form-input" style="margin-top:8px;font-size:14px" value="' + escHtml(f.note || '') + '"'
+        + ' onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'note\',this.value)" placeholder="Note (opzionale)">'
+        + '</div>';
+    } else {
+      return '<div class="farmaco-edit-card">'
+        + '<button class="farmaco-delete-btn" onclick="eliminaFarmaco(\'' + tipo + '\',' + i + ')">✕</button>'
+        + '<input type="text" class="form-input" style="margin-bottom:8px;font-weight:600" value="' + escHtml(f.nome) + '"'
+        + ' onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'nome\',this.value)" placeholder="Nome farmaco">'
+        + '<input type="text" class="form-input" value="' + escHtml(f.istruzioni || '') + '"'
+        + ' onchange="updateFarmaco(\'' + tipo + '\',' + i + ',\'istruzioni\',this.value)" placeholder="Istruzioni">'
+        + '</div>';
+    }
+  }).join('');
+}
+
+function updateFarmaco(tipo, i, campo, val) {
+  var arr = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
+  arr[i][campo] = (['mat','mez','ser','not'].indexOf(campo) !== -1) ? (parseFloat(val) || 0) : val;
+}
+function eliminaFarmaco(tipo, i) {
+  var arr = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
+  arr.splice(i, 1);
+  renderEditSection(tipo);
+  showToast('Farmaco rimosso');
+}
+function aggiungiFarmaco(tipo) {
+  var arr = tipo === 'fisso' ? editFissi : tipo === 'autogestito' ? editAutogestiti : editRiserva;
+  arr.push(tipo === 'fisso' ? {nome:'',mat:0,mez:0,ser:0,not:0,note:''} : {nome:'',istruzioni:''});
+  renderEditSection(tipo);
+  var elId = tipo === 'fisso' ? 'edit-fissi' : tipo === 'autogestito' ? 'edit-autogestiti' : 'edit-riserva';
+  setTimeout(function(){
+    var cards = document.getElementById(elId).querySelectorAll('.farmaco-edit-card');
+    var last  = cards[cards.length - 1];
+    if (last) { last.classList.add('nuovo'); last.scrollIntoView({behavior:'smooth',block:'center'}); last.querySelector('input').focus(); }
+  }, 50);
+}
+
+async function salvaNuovaVersione() {
+  var motivo    = document.getElementById('motivo-modifica').value.trim();
+  var medico    = document.getElementById('edit-medico').value.trim();
+  var documento = document.getElementById('edit-documento').value;
+  if (!motivo) { showToast('Inserisci il motivo della modifica', 'error'); return; }
+  var p = getCP();
+  if (!p) { showToast('Errore: paziente non trovato', 'error'); return; }
+
+  // Upload foto pendenti su Firebase Storage
+  var nuovaVers = p.versione + 1;
+  var fotoUrls = [];
+  for (var fi = 0; fi < _editFoto.length; fi++) {
+    var ef = _editFoto[fi];
+    if (ef.storageUrl) {
+      fotoUrls.push(ef.storageUrl);
+    } else if (ef.file) {
+      try {
+        var storRef = firebase.storage().ref('dosettes/foto/' + p.id + '/v' + nuovaVers + '_' + (fi + 1));
+        await storRef.put(ef.file);
+        fotoUrls.push(await storRef.getDownloadURL());
+      } catch (e) {
+        showToast('Errore upload foto ' + (fi + 1) + ' — controlla la connessione', 'error');
+        return;
+      }
+    }
+  }
+
+  // Revoca blob URL anteprime ora che le foto sono state uploadate
+  _editFoto.forEach(function(ef){ if(ef.previewUrl) URL.revokeObjectURL(ef.previewUrl); });
+
+  // Salva snapshot della terapia corrente (con le sue foto)
+  var vecchiaVersione = p.versione;
+  var snapshotChiave  = p.id + '-v' + vecchiaVersione;
+  TERAPIE_STORICHE[snapshotChiave] = {
+    dataSchema:   p.terapia.dataSchema,
+    fissi:        p.terapia.fissi.map(function(f){ return Object.assign({}, f); }),
+    autogestiti:  p.terapia.autogestiti.map(function(f){ return Object.assign({}, f); }),
+    riserva:      p.terapia.riserva.map(function(f){ return Object.assign({}, f); }),
+    foto:         (p.terapia.foto || []).slice()
+  };
+  p.versione++;
+  p.terapia.dataSchemaPrecedente = p.terapia.dataSchema;
+  p.terapia.dataSchema    = todayISO();
+  p.terapia.fissi         = editFissi.filter(function(f){ return f.nome.trim(); });
+  p.terapia.autogestiti   = editAutogestiti.filter(function(f){ return f.nome.trim(); });
+  p.terapia.riserva       = editRiserva.filter(function(f){ return f.nome.trim(); });
+  p.terapia.foto          = fotoUrls;
+  p.storico.push({
+    tipo:'terapia', data:todayISO(),
+    medico: medico || p.medico,
+    azione: motivo, doc: documento,
+    op:'-', visto:'-', versione: p.versione
+  });
+  // Attende entrambe le sync prima di navigare
+  Promise.all([
+    sincronizzaStorico(snapshotChiave, TERAPIE_STORICHE[snapshotChiave]),
+    sincronizzaPaziente(p)
+  ]).then(function(){
+    showToast('Terapia v' + p.versione + ' salvata!', 'success');
+    showScreen('screen-paziente');
+    document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 0); });
+    switchTab('terapia', null);
+  }).catch(function(){
+    // toast già mostrato — l'utente rimane sulla schermata per riprovare
+  });
+}
+
+// ════════════════════════════════════════════
+// NUOVO PAZIENTE
+// ════════════════════════════════════════════
+function salvaNuovoPaziente() {
+  var cognome = document.getElementById('new-cognome').value.trim();
+  var nome    = document.getElementById('new-nome').value.trim();
+  var ddn     = document.getElementById('new-ddn').value;
+  if (!cognome || !nome || !ddn) { showToast('Compila i campi obbligatori', 'error'); return; }
+  var newP = {
+    id:        'P' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    cognome: cognome, nome: nome, ddn: ddn,
+    medico:    document.getElementById('new-medico').value.trim(),
+    giorno:    document.getElementById('new-giorno').value,
+    consegna:  document.getElementById('new-consegna').value,
+    allergie:  document.getElementById('new-allergie').value.trim(),
+    note:      document.getElementById('new-note').value.trim(),
+    telefono:      (document.getElementById('new-telefono')||{value:''}).value.trim(),
+    indirizzo:     (document.getElementById('new-indirizzo')||{value:''}).value.trim(),
+    giornoInizio:  (document.getElementById('new-giornoInizio')||{value:''}).value,
+    durata:        (document.getElementById('new-durata')||{value:'7'}).value,
+    curatele:      !!(document.getElementById('new-curatele')||{}).checked,
+    stato:         (document.getElementById('new-stato')||{value:'attivo'}).value,
+    versione:  1,
+    terapia:   { dataSchema:todayISO(), dataSchemaPrecedente:null, fissi:[], autogestiti:[], riserva:[] },
+    storico:   [{tipo:'terapia',data:todayISO(),medico:'-',azione:'Nuovo paziente creato',doc:'-',op:'-',visto:'-',versione:1}],
+    preparazioni: []
+  };
+  DB.pazienti.push(newP);
+  sincronizzaPaziente(newP); // sync Firestore
+  ['new-cognome','new-nome','new-ddn','new-medico','new-allergie','new-note'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  showToast('Paziente creato ✓', 'success');
+  renderHome();
+  showScreen('screen-home');
+}
+
+// ════════════════════════════════════════════
+// GESTIONE OPERATORI
+// ════════════════════════════════════════════
+function renderOperatori() {
+  var el = document.getElementById('operatori-list');
+  if (!el) return;
+  el.innerHTML = OPERATORI.map(function(o, i){
+    // Se Firestore abilitato il PIN è hashato — mostrare sempre ●●●● per sicurezza
+    var pinLabel = (FIREBASE_ENABLED && o.pinHash) ? '●●●● (hashato)' : '●●●●';
+    return '<div class="operatore-row">'
+      + '<div class="op-avatar">' + o.sigla + '</div>'
+      + '<div class="op-info">'
+      + '<div class="op-nome">' + escHtml(o.nome) + '</div>'
+      + '<div class="op-ruolo">' + escHtml(o.ruolo) + ' · PIN: ' + escHtml(pinLabel) + ' · Sigla: ' + escHtml(o.sigla) + '</div>'
+      + '</div>'
+      + '<button class="op-delete" onclick="rimuoviOperatore(' + i + ')" title="Rimuovi">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function showModalNuovoOperatore() {
+  mostraModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">'
+    + '<div class="modal-title" style="margin:0">➕ Nuovo operatore</div>'
+    + '<button onclick="chiudiModal()" style="background:var(--surface2);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">Nome completo *</label>'
+    + '<input type="text" class="form-input" id="new-op-nome" autocapitalize="words"></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+    + '<div class="form-group"><label class="form-label">Sigla (2-3 car.) *</label>'
+    + '<input type="text" class="form-input" id="new-op-sigla" maxlength="3" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>'
+    + '<div class="form-group"><label class="form-label">Ruolo</label>'
+    + '<select class="form-select" id="new-op-ruolo"><option>Farmacista</option><option>Assistente</option></select></div>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">PIN (4 cifre) *</label>'
+    + '<input type="password" class="form-input" id="new-op-pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="4 cifre"></div>'
+    + '<button class="btn btn-primary btn-full" style="margin-top:8px" onclick="salvaOperatore()">✅ Aggiungi operatore</button>'
+  );
+}
+
+async function salvaOperatore() {
+  if (FIREBASE_ENABLED && firestoreDB) {
+    showToast('Gestisci gli operatori dalla console Admin', 'error');
+    return;
+  }
+  var nome  = document.getElementById('new-op-nome')  ? document.getElementById('new-op-nome').value.trim()  : '';
+  var sigla = document.getElementById('new-op-sigla') ? document.getElementById('new-op-sigla').value.trim().toUpperCase() : '';
+  var ruolo = document.getElementById('new-op-ruolo') ? document.getElementById('new-op-ruolo').value : '';
+  var pin   = document.getElementById('new-op-pin')   ? document.getElementById('new-op-pin').value.trim()   : '';
+  if (!nome || !sigla || !pin) { showToast('Compila tutti i campi', 'error'); return; }
+  if (!/^\d{4}$/.test(pin)) { showToast('PIN deve essere 4 cifre numeriche', 'error'); return; }
+  if (OPERATORI.find(function(o){ return o.sigla === sigla; })) { showToast('Sigla gia in uso', 'error'); return; }
+
+  var nuovoOp;
+  // Modalità locale/demo (FIREBASE_ENABLED = false): mantieni PIN in chiaro
+  nuovoOp = { sigla: sigla, nome: nome, ruolo: ruolo, pin: pin };
+  OPERATORI.push(nuovoOp);
+  chiudiModal();
+  renderOperatori();
+  showToast(nome + ' aggiunto ✓', 'success');
+}
+
+function rimuoviOperatore(i) {
+  var op = OPERATORI[i];
+  mostraModal(
+    '<div style="text-align:center;padding:8px 0">'
+    + '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'
+    + '<div style="font-size:17px;font-weight:700;margin-bottom:8px">Rimuovere ' + escHtml(op.nome) + '?</div>'
+    + '<div style="font-size:14px;color:var(--text2);margin-bottom:24px">' + escHtml(op.sigla) + ' non potrà più firmare le preparazioni.</div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<button class="btn btn-ghost" style="flex:1" onclick="chiudiModal()">Annulla</button>'
+    + '<button class="btn btn-danger" style="flex:1" onclick="chiudiModal();_confermaRimuoviOp(' + i + ')">Rimuovi</button>'
+    + '</div></div>'
+  );
+}
+function _confermaRimuoviOp(i) {
+  var op = OPERATORI[i];
+  if (!op) return;
+  if (FIREBASE_ENABLED && firestoreDB) {
+    showToast('Gestisci gli operatori dalla console Admin', 'error');
+    return;
+  }
+  OPERATORI.splice(i, 1);
+  renderOperatori();
+  showToast(op.nome + ' rimosso', 'success');
+}
+
+// ════════════════════════════════════════════
+// STAMPA
+// ════════════════════════════════════════════
+function stampaTerapia() {
+  var p=getCP(); _gapMigra(p);
+  var t=p.terapia||{}, fissi=t.fissi||[];
+
+  /* ── Calcola età ── */
+  function _eta(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d)) return '';
+    var today = new Date();
+    var age = today.getFullYear() - d.getFullYear();
+    if (today.getMonth() < d.getMonth() ||
+       (today.getMonth() === d.getMonth() && today.getDate() < d.getDate())) age--;
+    return ' (' + age + ' anni)';
+  }
+
+  /* ── Dati header ── */
+  var ddnFmt = p.dataNascita ? ' \u00b7 ' + formatDate(p.dataNascita) + _eta(p.dataNascita) : '';
+  var riga1  = (p.cognome||'') + ' ' + (p.nome||'') + ddnFmt;
+
+  var info2parti = [];
+  if (p.medico)   info2parti.push('Medico: ' + p.medico);
+  if (p.giorno)   info2parti.push('Ritiro: ' + p.giorno);
+  if (p.consegna) info2parti.push(p.consegna);
+  var info2 = info2parti.join('  \u00b7  ');
+
+  /* Schema nella riga inizio terapia */
+  var schemaStr = 'Sch. v.' + (p.versione||'1') + (t.dataSchema ? ' \u00b7 ' + formatDate(t.dataSchema) : '');
+
+  /* ── Note presenti? ── */
+  var hasNote = fissi.some(function(f){ return f.note && f.note.trim(); });
+
+  /* ── Intestazione colonne ── */
+  var thNote = hasNote
+    ? '<th class="sc-th sc-note" style="text-align:left;padding-left:4px;">Note</th>' : '';
+  var thead = '<tr>'
+    + '<th class="sc-th sc-nome" style="text-align:left;padding-left:5px;">Farmaco</th>'
+    + '<th class="sc-th sc-dose" style="min-width:22px;text-align:center;">Mat</th>'
+    + '<th class="sc-th sc-dose" style="min-width:22px;text-align:center;">Mez</th>'
+    + '<th class="sc-th sc-dose" style="min-width:22px;text-align:center;">Ser</th>'
+    + '<th class="sc-th sc-dose" style="min-width:22px;text-align:center;">Not</th>'
+    + thNote
+    + '</tr>';
+
+  /* ── Righe farmaci ── */
+  var rows = fissi.map(function(f){
+    var nomeCell = f.sospeso
+      ? '<span style="color:#aaa;text-decoration:line-through">' + f.nome + '</span>'
+      : (f.nome||'');
+    var tdNote = hasNote
+      ? '<td class="sc-td sc-note" style="text-align:left;padding-left:4px;">' + (f.note||'') + '</td>' : '';
+    return '<tr>'
+      + '<td class="sc-td sc-nome" style="text-align:left;padding-left:5px;">' + nomeCell + '</td>'
+      + '<td class="sc-td sc-dose" style="text-align:center;">' + (f.mat||'\u00b7') + '</td>'
+      + '<td class="sc-td sc-dose" style="text-align:center;">' + (f.mez||'\u00b7') + '</td>'
+      + '<td class="sc-td sc-dose" style="text-align:center;">' + (f.ser||'\u00b7') + '</td>'
+      + '<td class="sc-td sc-dose" style="text-align:center;">' + (f.not||'\u00b7') + '</td>'
+      + tdNote
+      + '</tr>';
+  }).join('');
+
+  /* ── HTML etichetta ── */
+  var html = ''
+    + '<div id="stampa-card" style="font-family:Arial,sans-serif;'
+    + 'width:10cm;height:7.5cm;border:1.5px solid #444;border-radius:4px;'
+    + 'overflow:hidden;margin:0 auto;background:#fff;'
+    + 'display:flex;flex-direction:column;box-sizing:border-box;">'
+
+    /* Header verde */
+    + '<div style="background:#2c5f2e;color:white;padding:5px 9px;flex-shrink:0;">'
+    + '<div style="font-size:13px;font-weight:700;line-height:1.25;">' + riga1 + '</div>'
+    + '<div id="sc-info2" style="font-size:10.5px;font-weight:600;opacity:1;margin-top:2px;line-height:1.45;">' + info2 + '</div>'
+    + '</div>'
+
+    /* Allergie */
+    + (p.allergie
+        ? '<div style="background:#222;color:white;padding:2px 9px;font-weight:700;font-size:8px;flex-shrink:0;">&#9888; ALLERGIE: ' + p.allergie + '</div>'
+        : '')
+
+    /* Riga inizio terapia + schema + dosette nr */
+    + '<div style="display:flex;justify-content:space-between;align-items:center;'
+    + 'padding:3px 9px;border-bottom:1px solid #ccc;background:#fafafa;flex-shrink:0;">'
+    + '<div style="font-size:8px;">Inizio terapia:&nbsp;'
+    + '<input id="stampa-inizio" type="text" placeholder="es. mercoled\u00ec mattina" '
+    + 'style="font-size:8px;border:none;border-bottom:1px solid #888;outline:none;width:100px;background:transparent;color:#222;"></div>'
+    + '<div style="font-size:8px;font-weight:600;color:#444;white-space:nowrap;">' + schemaStr + '</div>'
+    + '<div style="font-size:8px;font-weight:700;">Dosette Nr.&nbsp;'
+    + '<input id="stampa-nr" type="number" min="1" max="99" '
+    + 'style="font-size:14px;font-weight:700;border:none;border-bottom:2px solid #2c5f2e;outline:none;width:34px;text-align:center;background:transparent;color:#1B4332;"></div>'
+    + '</div>'
+
+    /* Tabella farmaci */
+    + '<div id="sc-table-wrap" style="flex:1;overflow:hidden;">'
+    + '<table style="width:100%;border-collapse:collapse;">'
+    + '<thead>' + thead + '</thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>'
+    + '</div>'
+
+    /* Footer */
+    + '<div style="border-top:1px solid #ccc;padding:2px 9px;font-size:8px;color:#777;flex-shrink:0;">'
+    + 'Farmacia Ascona \u00b7 viale Monte Verita 3 \u00b7 CH-6612 Ascona \u00b7 Tel. 091 791 0102'
+    + '</div>'
+    + '</div>';
+
+  document.getElementById('stampa-content').innerHTML = html;
+  showScreen('screen-stampa');
+
+  /* ── Font dinamico iterativo ──
+     Approccio corretto per <table>:
+     - table-layout:fixed + larghezze esplicite sulle colonne dose/note
+     - la colonna nome prende lo spazio rimanente
+     - white-space:nowrap + ellipsis sui td nome (NO max-width:0)
+     - riduzione iterativa del font se le righe non ci stanno in verticale
+  ── */
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){   // doppio rAF → layout stabile dopo showScreen()
+      var wrap = document.getElementById('sc-table-wrap');
+      var tbl  = wrap ? wrap.querySelector('table') : null;
+      if (!wrap || !tbl) return;
+
+      /* 1) table-layout:fixed: le larghezze sono dettate dai <th>, non dal contenuto */
+      tbl.style.tableLayout = 'fixed';
+      tbl.style.width       = '100%';
+
+      /* 2) Larghezze colonne: dose strette, note media, nome prende il resto */
+      wrap.querySelectorAll('th.sc-dose').forEach(function(th){ th.style.width = '26px'; });
+      var noteTh = wrap.querySelector('th.sc-note');
+      if (noteTh) noteTh.style.width = '62px';
+
+      /* 3) Nomi: mai a capo, troncati con … se troppo lunghi */
+      wrap.querySelectorAll('td.sc-nome').forEach(function(td){
+        td.style.whiteSpace   = 'nowrap';
+        td.style.overflow     = 'hidden';
+        td.style.textOverflow = 'ellipsis';
+      });
+
+      /* 4) Applica font size a tutte le celle */
+      function applyFs(fs) {
+        var fsDose = (fs * 10 / 9);
+        var fsHead = (fs * 7.5 / 9);
+        var fsNote = (fs * 7.5 / 9);
+        var pad    = Math.max(0.4, fs * 0.28).toFixed(1);
+
+        wrap.querySelectorAll('.sc-th,.sc-td').forEach(function(el){
+          var isNome = el.classList.contains('sc-nome');
+          var isDose = el.classList.contains('sc-dose');
+          var isNote = el.classList.contains('sc-note');
+          var isTH   = el.tagName === 'TH';
+
+          el.style.borderBottom = '1px solid #eee';
+          el.style.padding      = pad + 'px 3px';
+
+          if (isNome) {
+            el.style.fontSize    = (isTH ? fsHead : fs).toFixed(1) + 'px';
+            el.style.paddingLeft = '5px';
+            if (!isTH) el.style.fontWeight = '400';
+          } else if (isDose) {
+            el.style.fontSize    = (isTH ? fsHead : fsDose).toFixed(1) + 'px';
+            el.style.textAlign   = 'center';
+            if (!isTH) el.style.fontWeight = '700';
+          } else if (isNote) {
+            el.style.fontSize    = fsNote.toFixed(1) + 'px';
+            el.style.paddingLeft = '4px';
+            if (!isTH) { el.style.fontWeight = '400'; el.style.color = '#555'; }
+          }
+          if (isTH) {
+            el.style.background = '#ebebeb';
+            el.style.color      = '#333';
+            el.style.fontWeight = '700';
+          }
+        });
+      }
+
+      /* 5) Iterazione verticale: riduci font finché tutte le righe ci stanno */
+      var fs   = 9.5;
+      var MIN  = 6.0;
+      var iter = 0;
+
+      function iterate() {
+        applyFs(fs);
+        requestAnimationFrame(function(){
+          var overflow = wrap.scrollHeight > wrap.clientHeight + 2;
+          if (overflow && fs > MIN && iter < 25) {
+            fs = Math.max(MIN, fs * 0.93);
+            iter++;
+            iterate();
+          } else {
+            var i2 = document.getElementById('sc-info2');
+            if (i2) {
+              var len = i2.textContent.length;
+              i2.style.fontSize = (len <= 55 ? 10.5 : len <= 75 ? 10 : 9.5) + 'px';
+            }
+          }
+        });
+      }
+      iterate();
+    });
+  });
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+(function(){
+  var giorni=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  var mesi=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  function pad(n){return n<10?'0'+n:String(n);}
+  function tick(){
+    var now=new Date();
+    var dateStr=giorni[now.getDay()]+', '+now.getDate()+' '+mesi[now.getMonth()];
+    var timeStr=pad(now.getHours())+':'+pad(now.getMinutes());
+    var elD=document.getElementById('header-date');
+    var elT=document.getElementById('header-time');
+    if(elD) elD.textContent=dateStr;
+    if(elT) elT.textContent=timeStr;
+    var elLD=document.getElementById('login-hdr-date');
+    var elLT=document.getElementById('login-hdr-time');
+    if(elLD) elLD.textContent=dateStr;
+    if(elLT) elLT.textContent=timeStr;
+  }
+  tick();
+  var ms=(60-new Date().getSeconds())*1000;
+  setTimeout(function(){tick();setInterval(tick,60000);},ms);
+})();
+
+
+</script>
+
+<style>
+@media print {
+  @page { size: 10cm 7.5cm; margin: 0; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .screen { display: none !important; }
+  #screen-stampa { display: flex !important; justify-content: center; align-items: center; padding: 0 !important; margin: 0 !important; }
+  body { background: white !important; margin: 0 !important; padding: 0 !important; }
+  #stampa-card { width: 10cm !important; height: 7.5cm !important; margin: 0 !important; border-radius: 0 !important; border: none !important; }
+  .header, .fab, .tabs, .pin-overlay { display: none !important; }
+}
+</style>
+
+<!-- ══ LOCK OVERLAY ══ -->
+<div id="lock-overlay" style="display:none;position:fixed;inset:0;z-index:9998;background:var(--accent-dark);flex-direction:column;align-items:center;justify-content:center;padding:32px 24px">
+  <div style="font-size:48px;margin-bottom:8px">&#128274;</div>
+  <div style="font-size:22px;font-weight:700;color:white;margin-bottom:4px">Sessione bloccata</div>
+  <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:24px" id="lock-subtitle">Reinserisci il PIN per continuare</div>
+  <select class="form-select" id="lock-operatore" style="max-width:280px;width:100%;text-align:center;background:rgba(255,255,255,0.92);border-color:rgba(255,255,255,0.6);color:var(--accent-dark);font-weight:600;margin-bottom:16px">
+    <option value="">— Seleziona operatore —</option>
+  </select>
+  <div style="display:flex;gap:16px;justify-content:center;margin-bottom:20px" id="lock-pin-dots">
+    <div class="pin-dot" id="lk0"></div>
+    <div class="pin-dot" id="lk1"></div>
+    <div class="pin-dot" id="lk2"></div>
+    <div class="pin-dot" id="lk3"></div>
+  </div>
+  <div class="login-pin-grid">
+    <button class="login-pin-btn" onclick="lockPinDigit('1')">1</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('2')">2</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('3')">3</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('4')">4</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('5')">5</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('6')">6</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('7')">7</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('8')">8</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('9')">9</button>
+    <button class="login-pin-btn action" onclick="lockPinClear()">&#9003;</button>
+    <button class="login-pin-btn" onclick="lockPinDigit('0')">0</button>
+    <button class="login-pin-btn action" id="lock-confirm-btn" onclick="lockPinConfirm()" style="background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.7)">OK</button>
+  </div>
+  <div style="color:#ffb3b3;font-size:13px;font-weight:600;margin-top:12px;min-height:20px" id="lock-error"></div>
+  <button class="btn btn-ghost" style="color:rgba(255,255,255,0.6);margin-top:24px;font-size:13px" onclick="doLogoutDosettes()">Esci definitivamente</button>
+</div>
+
+</body>
+</html>
