@@ -2229,7 +2229,11 @@ function apriDettaglioStorico(key) {
 function openPaziente(id) {
   if (!currentOperatore) { logout(); return; }
   currentPazienteId = id;
-  _tlYear = null; _tlMonth = null;
+  _tlYear = null; _tlMonth = null; _tlVisible = false;
+  var tlEl = document.getElementById('timeline-container');
+  var tlBtn = document.getElementById('btn-timeline');
+  if (tlEl) { tlEl.style.display = 'none'; tlEl.innerHTML = ''; }
+  if (tlBtn) tlBtn.style.background = '';
   var p = getCP();
   document.getElementById('pz-header-nome').textContent = p.cognome + ' ' + p.nome;
   document.getElementById('pz-header-meta').textContent = formatDate(p.ddn) + ' · ' + formatAge(p.ddn);
@@ -2361,23 +2365,43 @@ function buildTerapiaTable(t) {
 // PREPARAZIONE VIEW
 // ════════════════════════════════════════════
 function _calcConsegnaDate(p) {
+  var GIORNO_DOW = {'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':0};
+  var targetDow = (p.giorno !== undefined) ? GIORNO_DOW[p.giorno] : undefined;
+
+  // Caso 1: esiste una prep non ancora consegnata → vai indietro da periodoDal fino a p.giorno
   var nextDal = null;
   (p.preparazioni || []).forEach(function(pr) {
     if (!pr.annullata && !pr.consegna && pr.periodoDal) {
       if (!nextDal || pr.periodoDal < nextDal) nextDal = pr.periodoDal;
     }
   });
-  if (!nextDal) return null;
-  var GIORNO_DOW = {'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':0};
-  var d = new Date(nextDal + 'T00:00:00');
-  var targetDow = GIORNO_DOW[p.giorno];
+  if (nextDal) {
+    var d = new Date(nextDal + 'T00:00:00');
+    if (targetDow !== undefined) {
+      for (var i = 0; i < 7; i++) {
+        d.setDate(d.getDate() - 1);
+        if (d.getDay() === targetDow) break;
+      }
+    }
+    return d;
+  }
+
+  // Caso 2: tutte consegnate → prendi periodoAl più recente e vai avanti fino a p.giorno
+  var lastAl = null;
+  (p.preparazioni || []).forEach(function(pr) {
+    if (!pr.annullata && pr.consegna && pr.periodoAl) {
+      if (!lastAl || pr.periodoAl > lastAl) lastAl = pr.periodoAl;
+    }
+  });
+  if (!lastAl) return null;
+  var d2 = new Date(lastAl + 'T00:00:00');
   if (targetDow !== undefined) {
-    for (var i = 0; i < 7; i++) {
-      d.setDate(d.getDate() - 1);
-      if (d.getDay() === targetDow) break;
+    for (var j = 0; j < 7; j++) {
+      d2.setDate(d2.getDate() + 1);
+      if (d2.getDay() === targetDow) break;
     }
   }
-  return d;
+  return d2;
 }
 
 function renderPreparazione(p) {
@@ -2623,29 +2647,12 @@ function renderTimeline(p) {
     if (pr.consegna) used[num].hasDisp = true; else used[num].hasReady = true;
   });
 
-  // Prossima consegna: prima preparazione non annullata e non ancora consegnata
-  var _nextDal = null;
-  (p.preparazioni || []).forEach(function(pr) {
-    if (!pr.annullata && !pr.consegna && pr.periodoDal) {
-      if (!_nextDal || pr.periodoDal < _nextDal) _nextDal = pr.periodoDal;
-    }
-  });
   var consegnaNota = '';
-  if (_nextDal) {
+  var _consDate = _calcConsegnaDate(p);
+  if (_consDate) {
     var _GIORNI_NOMI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
-    var _GIORNO_DOW = {'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':0};
-    var _consDate = new Date(_nextDal + 'T00:00:00');
-    var _targetDow = _GIORNO_DOW[p.giorno];
-    if (_targetDow !== undefined) {
-      // risali indietro dal periodoDal fino a trovare il giorno della settimana di ritiro
-      for (var _i = 0; _i < 7; _i++) {
-        _consDate.setDate(_consDate.getDate() - 1);
-        if (_consDate.getDay() === _targetDow) break;
-      }
-    }
     var _cd = _tlLocalDate(_consDate).split('-');
-    var _cdNome = _GIORNI_NOMI[_consDate.getDay()];
-    consegnaNota = '<div style="font-size:11px;color:var(--accent);font-weight:600;margin-top:2px">📦 Prossima consegna: ' + _cdNome + ' ' + _cd[2] + '.' + _cd[1] + '.' + _cd[0] + '</div>';
+    consegnaNota = '<div style="font-size:11px;color:var(--accent);font-weight:600;margin-top:2px">📦 Prossima consegna: ' + _GIORNI_NOMI[_consDate.getDay()] + ' ' + _cd[2] + '.' + _cd[1] + '.' + _cd[0] + '</div>';
   }
 
   var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 10px">';
