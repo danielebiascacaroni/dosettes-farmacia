@@ -875,7 +875,8 @@ body {
     <div style="font-size:44px;margin-bottom:12px;">🚫</div>
     <h2>Applicazione già aperta</h2>
     <p>Questa finestra è stata bloccata perché Dosettes risulta già attiva in un'altra finestra dello stesso browser.</p>
-    <p class="hint">Chiudi l'altra finestra oppure attendi alcuni secondi e riapri l'app.</p>
+    <p class="hint">Se l'altra finestra non è più aperta, premi il bottone qui sotto per sbloccare.</p>
+    <button onclick="forceReopenApp()" style="margin-top:8px;padding:12px 28px;background:#2e7d32;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">&#8635; Forza apertura</button>
   </div>
 </div>
 
@@ -1500,6 +1501,16 @@ var firebaseConfig = {
   appId:             '1:628957359401:web:7061c0a375b82288e45b38'
 };
 
+function forceReopenApp() {
+  if (typeof BroadcastChannel !== 'undefined') {
+    try { var bc = new BroadcastChannel('fa_operator_sync'); bc.postMessage({type:'yield_instance'}); bc.close(); } catch(e){}
+  }
+  setTimeout(function() {
+    try { Object.keys(localStorage).forEach(function(k){ if(k.indexOf('fa_single_instance:')===0) localStorage.removeItem(k); }); } catch(e){}
+    window.location.reload();
+  }, 350);
+}
+
 var firestoreDB = null;
 var singleInstanceGuard = null;
 var _authInitialized = false;
@@ -1589,18 +1600,27 @@ function createSingleInstanceGuard(appKey) {
       });
 
       return true;
-    }
+    },
+    release: function() { releaseLock(); clearInterval(heartbeatTimer); }
   };
 }
 
 (function(){
   singleInstanceGuard = createSingleInstanceGuard('dosettes');
   if (!singleInstanceGuard.start()) return;
-  // Logout automatico se il launcher cambia operatore o fa logout
   if (typeof BroadcastChannel !== 'undefined') {
     new BroadcastChannel('fa_operator_sync').onmessage = function(e) {
-      if (e.data && (e.data.type === 'logout' || e.data.type === 'operator_changed')) {
+      if (!e.data) return;
+      if (e.data.type === 'logout' || e.data.type === 'operator_changed') {
         if (typeof doLogoutDosettes === 'function') doLogoutDosettes();
+      }
+      if (e.data.type === 'yield_instance') {
+        if (singleInstanceGuard) singleInstanceGuard.release();
+        var box = document.getElementById('single-instance-box');
+        var ov  = document.getElementById('single-instance-overlay');
+        if (box) box.innerHTML = '<div style="font-size:44px;margin-bottom:12px">⚡</div><h2>Sessione sostituita</h2><p>Un\'altra finestra ha preso il controllo. Puoi chiudere questa scheda.</p>';
+        if (ov)  ov.style.display = 'flex';
+        var app = document.getElementById('app'); if (app) app.style.display = 'none';
       }
     };
   }
@@ -1610,7 +1630,7 @@ function createSingleInstanceGuard(appKey) {
     // ── DEVICE AUTH ──────────────────────────
     (function(){
       var DEVICE_KEY='fa_device_id';
-      function getOrCreateDeviceId(){var id=localStorage.getItem(DEVICE_KEY);if(!id){id='dev_'+Date.now().toString(36)+Math.random().toString(36).substr(2,9);localStorage.setItem(DEVICE_KEY,id);}return id;}
+      function getOrCreateDeviceId(){var cm=document.cookie.match(/(^|;)\s*fa_device_id=([^;]+)/);var id=localStorage.getItem(DEVICE_KEY)||(cm&&cm[2])||null;if(!id){id='dev_'+Date.now().toString(36)+Math.random().toString(36).substr(2,9);}localStorage.setItem(DEVICE_KEY,id);document.cookie='fa_device_id='+id+';max-age=63072000;path=/;SameSite=Strict';return id;}
       async function sha256(s){var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
       window._daDeviceId=getOrCreateDeviceId();
       firebase.auth().onAuthStateChanged(async function(user){
