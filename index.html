@@ -129,6 +129,7 @@ body {
   padding: 12px 18px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   font-weight: 600;
   font-size: 15px;
@@ -140,6 +141,7 @@ body {
   padding: 10px 18px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -989,7 +991,8 @@ body {
         <span id="count-badge" class="badge badge-gray">0</span>
         <button class="btn btn-sm btn-ghost" onclick="showScreen('screen-storico');renderStoricoGlobale()" style="font-size:13px">📋 Storico</button>
         <button class="btn btn-sm btn-ghost" onclick="showScreen('screen-operatori')" style="font-size:13px">⚙️ Operatori</button>
-      
+        <button class="btn btn-sm btn-ghost" id="btn-cestino" onclick="showScreen('screen-cestino');renderCestino()" style="font-size:13px;display:none">🗑 Cestino</button>
+
         <span class="header-user" id="header-user-badge" style="display:none">&mdash;</span></div>
     </div>
     <div id="workflow-queue"></div>
@@ -1075,7 +1078,10 @@ body {
     <div id="tab-preparazione" style="display:none">
       <div class="section-header">
         <span class="section-title">Nuova preparazione</span>
+        <button class="btn btn-sm btn-ghost" id="btn-timeline" onclick="toggleTimeline()">📅 Timeline</button>
       </div>
+      <div id="timeline-container" style="display:none;margin-bottom:10px"></div>
+      <div id="prep-festivo-warn" style="display:none;margin-bottom:10px"></div>
       <div class="card">
         <div class="form-group">
           <label class="form-label">N° dosette <span style="font-weight:400;color:var(--text2)">(identificativo scatola)</span></label>
@@ -1104,6 +1110,14 @@ body {
       <div class="section-header" style="margin-top:8px">
         <span class="section-title">Preparazioni recenti</span>
       </div>
+      <div style="display:flex;gap:16px;padding:6px 0 10px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="chk-cancellate" onchange="renderPreparazione(getCP())"> Mostra cancellate
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="chk-modifiche-terapia" onchange="renderPreparazione(getCP())"> Modifiche di terapia
+        </label>
+      </div>
       <div id="prep-list"></div>
     </div>
 
@@ -1112,6 +1126,9 @@ body {
       <div id="anagrafica-modifica-bar" style="display:none;padding:0 0 12px 0">
         <button class="btn btn-primary btn-full" onclick="showModificaAnagrafica()">
           &#9998; Modifica anagrafica
+        </button>
+        <button class="btn btn-full" style="margin-top:8px;background:var(--danger);color:white;border:none" onclick="chiediCancellaPaziente()">
+          🗑 Cancella paziente
         </button>
       </div>
       <div class="card" id="anagrafica-content"></div>
@@ -1264,6 +1281,20 @@ body {
         💾 Salva nuova versione terapia
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SCREEN CESTINO
+════════════════════════════════════════════ -->
+<div id="screen-cestino" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="showScreen('screen-home')">←</button>
+    <span class="header-title">🗑 Cestino</span>
+    <span id="cestino-count" class="badge badge-gray" style="margin-left:auto;margin-right:8px">0</span>
+  </div>
+  <div class="content">
+    <div id="cestino-list"></div>
   </div>
 </div>
 
@@ -1650,7 +1681,7 @@ function loadData() {
   var _demoPazienti = DB.pazienti.slice();
   var loadPazienti = firestoreDB.collection('pazienti').get().then(function(snapshot) {
     var loaded = [];
-    snapshot.forEach(function(doc){ loaded.push(doc.data()); });
+    snapshot.forEach(function(doc){ var d = doc.data(); if (!d.id) d.id = doc.id; loaded.push(d); });
     // Firestore e' la fonte di verita': usa sempre i dati remoti, anche se la lista e' vuota.
     // NON usare il fallback hardcoded se la lettura Firestore ha avuto successo.
     DB.pazienti = loaded;
@@ -1974,6 +2005,7 @@ function showStepCompletion(message) {
 function collectWorkflowQueue() {
   var items = [];
   DB.pazienti.forEach(function(p){
+    if (!p.versione && !p.terapia) return;
     _gapMigra(p);
     (p.preparazioni || []).forEach(function(pr){
       if (!pr) return;
@@ -2026,6 +2058,8 @@ function renderHome() {
   }
   var fil = DB.pazienti.filter(function(p){
     _gapMigra(p);
+    if (p._eliminato) return false;
+    if (!p.versione && !p.terapia) return false; // pazienti da altre app (es. Consegne)
     var _fs=(document.getElementById('filtro-stato')||{value:'tutti'}).value;
     var hay=((p.cognome||'')+' '+(p.nome||'')+' '+(p.ddn||'')).toLowerCase();
     return (_fs==='tutti'||(p.stato||'attivo')===_fs) && hay.indexOf(q)!==-1;
@@ -2049,13 +2083,16 @@ function renderHome() {
         if (p.note && p.note.toLowerCase().indexOf('dialisi') !== -1)
           badges += '<span class="badge badge-info">Dialisi</span>';
         var statoSafe = escHtml(p.stato || 'attivo');
+        var deleteBtn = isFarmacista(currentOperatore)
+          ? '<button style="background:none;border:none;color:var(--danger);font-size:20px;cursor:pointer;padding:4px 6px;border-radius:6px;flex-shrink:0;line-height:1" onclick="event.stopPropagation();chiediCancellaPaziente(\'' + escJs(p.id) + '\')" title="Cancella paziente">🗑</button>'
+          : '';
         return '<div class="patient-item" data-pid="' + escHtml(p.id) + '" onclick="openPaziente(this.getAttribute(\'data-pid\'))">'
           + '<div class="patient-avatar' + (ha ? ' has-allergy' : '') + '">' + ini + '</div>'
           + '<div class="patient-info">'
           + '<div class="patient-name">' + escHtml(p.cognome) + ' ' + escHtml(p.nome) + '</div>'
           + '<div class="patient-meta">' + formatDate(p.ddn) + ' · ' + formatAge(p.ddn) + ' · ' + escHtml(p.medico || '—') + '</div>'
           + '<div class="patient-badges">' + ((p.stato&&p.stato!=='attivo') ? '<span class="badge-stato-' + statoSafe + '">' + statoSafe.toUpperCase() + '</span>' : '') + badges + '</div>'
-          + '</div><span class="chevron">›</span></div>';
+          + '</div>' + deleteBtn + '<span class="chevron">›</span></div>';
       }).join('');
     }
   }
@@ -2192,12 +2229,13 @@ function apriDettaglioStorico(key) {
 function openPaziente(id) {
   if (!currentOperatore) { logout(); return; }
   currentPazienteId = id;
+  _tlYear = null; _tlMonth = null;
   var p = getCP();
   document.getElementById('pz-header-nome').textContent = p.cognome + ' ' + p.nome;
   document.getElementById('pz-header-meta').textContent = formatDate(p.ddn) + ' · ' + formatAge(p.ddn);
   renderAllergieBar('allergie-bar', p);
-  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 0); });
-  switchTab('terapia', null);
+  document.querySelectorAll('.tab-btn').forEach(function(b, i){ b.classList.toggle('active', i === 1); });
+  switchTab('preparazione', null);
   showScreen('screen-paziente');
 }
 
@@ -2322,13 +2360,95 @@ function buildTerapiaTable(t) {
 // ════════════════════════════════════════════
 // PREPARAZIONE VIEW
 // ════════════════════════════════════════════
+function _calcConsegnaDate(p) {
+  var nextDal = null;
+  (p.preparazioni || []).forEach(function(pr) {
+    if (!pr.annullata && !pr.consegna && pr.periodoDal) {
+      if (!nextDal || pr.periodoDal < nextDal) nextDal = pr.periodoDal;
+    }
+  });
+  if (!nextDal) return null;
+  var GIORNO_DOW = {'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':0};
+  var d = new Date(nextDal + 'T00:00:00');
+  var targetDow = GIORNO_DOW[p.giorno];
+  if (targetDow !== undefined) {
+    for (var i = 0; i < 7; i++) {
+      d.setDate(d.getDate() - 1);
+      if (d.getDay() === targetDow) break;
+    }
+  }
+  return d;
+}
+
 function renderPreparazione(p) {
+  if (_tlVisible) renderTimeline(p);
+
+  // Warning se la prossima consegna cade in un festivo non domenicale
+  var warnEl = document.getElementById('prep-festivo-warn');
+  if (warnEl) {
+    var cd = _calcConsegnaDate(p);
+    if (cd) {
+      var cdStr = _tlLocalDate(cd);
+      var festivi = _tlHolidays(cd.getFullYear());
+      if (cd.getDay() !== 0 && festivi.has(cdStr)) {
+        var festNome = festivi.get(cdStr);
+        var cdParts = cdStr.split('-');
+        var cdFmt = cdParts[2] + '.' + cdParts[1] + '.' + cdParts[0];
+        var GIORNI_NOMI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+        warnEl.innerHTML = '<div style="background:#fff3e0;border:1.5px solid #e65100;border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:10px">'
+          + '<span style="font-size:20px">⚠️</span>'
+          + '<div><div style="font-weight:700;color:#e65100;font-size:13px">Attenzione: consegna in giorno festivo</div>'
+          + '<div style="font-size:12px;color:#bf360c;margin-top:2px">La prossima consegna cade ' + GIORNI_NOMI[cd.getDay()] + ' ' + cdFmt + ' (' + festNome + '). La farmacia è chiusa.</div>'
+          + '</div></div>';
+        warnEl.style.display = '';
+      } else {
+        warnEl.style.display = 'none';
+        warnEl.innerHTML = '';
+      }
+    } else {
+      warnEl.style.display = 'none';
+      warnEl.innerHTML = '';
+    }
+  }
+
   var list = document.getElementById('prep-list');
-  if (!p.preparazioni || !p.preparazioni.length) {
-    list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="icon">📋</div><p>Nessuna preparazione</p></div>';
+  var mostraCancellate   = !!(document.getElementById('chk-cancellate') || {}).checked;
+  var mostraModifiche    = !!(document.getElementById('chk-modifiche-terapia') || {}).checked;
+
+  if (mostraModifiche) {
+    var storEntries = (p.storico || []).filter(function(s){ return s.tipo === 'terapia'; }).slice().reverse();
+    if (!storEntries.length) {
+      list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="icon">💊</div><p>Nessuna modifica di terapia registrata</p></div>';
+      return;
+    }
+    list.innerHTML = storEntries.map(function(s) {
+      var hasSnap = s.versione && (TERAPIE_STORICHE[p.id + '-v' + s.versione] || s.versione === p.versione);
+      var vediBtn = hasSnap
+        ? '<div class="prep-actions"><button class="btn btn-sm btn-ghost" onclick="mostraDettaglioTerapia(\'' + escJs(p.id) + '\',' + s.versione + ')">🔍 Vedi terapia v' + s.versione + '</button></div>'
+        : '';
+      return '<div class="prep-card">'
+        + '<div class="prep-header">'
+        + '<div>'
+        + '<div class="prep-periodo">v' + escHtml(String(s.versione || '?')) + (s.data ? ' · ' + escHtml(s.data) : '') + '</div>'
+        + '<div class="prep-data">Medico: ' + escHtml(s.medico || '—') + (s.doc && s.doc !== '-' ? ' · Doc: ' + escHtml(s.doc) : '') + (s.op && s.op !== '-' ? ' · Op: ' + escHtml(s.op) : '') + '</div>'
+        + '</div>'
+        + '<span class="badge badge-info">TERAPIA</span>'
+        + '</div>'
+        + (s.azione ? '<div style="font-size:13px;color:var(--text2);padding:6px 0 4px">' + escHtml(s.azione) + '</div>' : '')
+        + vediBtn
+        + '</div>';
+    }).join('');
     return;
   }
-  list.innerHTML = p.preparazioni.slice().reverse().map(function(pr){
+
+  var preps = (p.preparazioni || []).slice().reverse();
+  if (!mostraCancellate) preps = preps.filter(function(pr){ return !pr.annullata; });
+
+  if (!preps.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="icon">📋</div><p>' + (p.preparazioni && p.preparazioni.length ? 'Nessuna preparazione attiva' : 'Nessuna preparazione') + '</p></div>';
+    return;
+  }
+  list.innerHTML = preps.map(function(pr){
     var canceled = pr.annullata;
     var statoInfo = getPrepStateMeta(pr);
     var statoClass = canceled ? 'badge-canceled' : statoInfo.badge;
@@ -2368,6 +2488,10 @@ function renderPreparazione(p) {
         btns += '<button class="btn btn-sm btn-outline" style="flex:1" onclick="showConsegnaModal(\''
           + escHtml(pr.id) + '\')">📦 Registra consegna</button>';
       }
+      var hasSnap = pr.versione && (TERAPIE_STORICHE[p.id + '-v' + pr.versione] || pr.versione === p.versione);
+      if (hasSnap) {
+        btns += '<button class="btn btn-sm btn-ghost" style="flex:1" onclick="mostraDettaglioTerapia(\'' + escJs(p.id) + '\',' + pr.versione + ')">💊 Terapia v' + pr.versione + '</button>';
+      }
       btns += '<button class="btn btn-sm btn-ghost" style="flex:1;color:var(--danger)" onclick="mostraAnnullaModal(\''
         + escHtml(pr.id) + '\')">🗑 Annulla</button>';
       actionsHtml = '<div class="prep-actions">' + btns + '</div>';
@@ -2394,6 +2518,199 @@ function renderPreparazione(p) {
       + (pr.note ? '<div class="prep-note-box">📝 ' + escHtml(pr.note) + '</div>' : '') + (pr.opPrep ? '<div style="font-size:11px;color:#888;padding:0 0 4px 2px">Preparato da: <b>' + escHtml(pr.opPrep) + '</b></div>' : '') + consegnaHtml + actionsHtml
       + '</div>';
   }).join('');
+}
+
+// ════════════════════════════════════════════
+// TIMELINE DISPENSAZIONI
+// ════════════════════════════════════════════
+var _tlYear = null, _tlMonth = null, _tlVisible = false;
+
+var _DOSETTE_COLORS = ['#2e7d32','#1565c0','#e65100','#6a1b9a','#c62828','#00838f','#558b2f','#283593','#ad1457'];
+
+function _tlEaster(y) {
+  var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
+      f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+      h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+      l=(32+2*e+2*i-h-k)%7,m2=Math.floor((a+11*h+22*l)/451),
+      mo=Math.floor((h+l-7*m2+114)/31),da=((h+l-7*m2+114)%31)+1;
+  return new Date(y,mo-1,da);
+}
+
+function _tlLocalDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function _tlHolidays(y) {
+  var eMs = _tlEaster(y).getTime();
+  var mp = new Map();
+  // festivi fissi Ticino (mese 0-based, giorno)
+  [
+    [[0,1],'Capodanno'],[[0,6],'Epifania'],[[2,19],'San Giuseppe'],
+    [[5,29],'SS. Pietro e Paolo'],[[7,1],'Festa nazionale'],[[7,15],'Assunzione'],
+    [[10,1],'Ognissanti'],[[11,8],'Immacolata Concezione'],[[11,25],'Natale'],[[11,26],'Santo Stefano']
+  ].forEach(function(f){ mp.set(_tlLocalDate(new Date(y,f[0][0],f[0][1])), f[1]); });
+  // festivi mobili (Lunedì Pasqua, Ascensione, Lunedì Pentecoste)
+  [[1,'Lunedì di Pasqua'],[39,'Ascensione'],[49,'Lunedì di Pentecoste']].forEach(function(d){
+    mp.set(_tlLocalDate(new Date(eMs + d[0]*86400000)), d[1]);
+  });
+  return mp;
+}
+
+function toggleTimeline() {
+  _tlVisible = !_tlVisible;
+  var el = document.getElementById('timeline-container');
+  var btn = document.getElementById('btn-timeline');
+  if (!el) return;
+  if (_tlVisible) {
+    if (_tlYear === null) {
+      var refDate = new Date();
+      _tlYear = refDate.getFullYear();
+      _tlMonth = refDate.getMonth();
+    }
+    el.style.display = '';
+    if (btn) btn.style.background = 'var(--accent-light)';
+    renderTimeline(getCP());
+  } else {
+    el.style.display = 'none';
+    if (btn) btn.style.background = '';
+  }
+}
+
+function navTimeline(delta) {
+  _tlMonth += delta;
+  if (_tlMonth > 11) { _tlMonth = 0; _tlYear++; }
+  if (_tlMonth < 0)  { _tlMonth = 11; _tlYear--; }
+  renderTimeline(getCP());
+}
+
+function renderTimeline(p) {
+  var el = document.getElementById('timeline-container');
+  if (!el || !_tlVisible || !p) return;
+  var y = _tlYear, m = _tlMonth;
+  var holidays = _tlHolidays(y);
+  var MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  var DNAMES = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
+
+  // mappa data → {num, dispensata}
+  var cov = {};
+  (p.preparazioni || []).forEach(function(pr) {
+    if (pr.annullata || !pr.periodoDal || !pr.periodoAl || !pr.numeroDosette) return;
+    var num = parseInt(pr.numeroDosette);
+    var dispensata = !!pr.consegna;
+    var cur = new Date(pr.periodoDal + 'T00:00:00');
+    var end = new Date(pr.periodoAl + 'T00:00:00');
+    while (cur <= end) {
+      var ds = _tlLocalDate(cur);
+      cov[ds] = {num: num, dispensata: dispensata};
+      cur.setDate(cur.getDate() + 1);
+    }
+  });
+
+  // griglia mese
+  var firstDow = (new Date(y, m, 1).getDay() + 6) % 7; // 0=Lun
+  var daysInMonth = new Date(y, m+1, 0).getDate();
+  var cells = [];
+  for (var i = 0; i < firstDow; i++) cells.push(null);
+  for (var d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7) cells.push(null);
+
+  // legenda dosette usate
+  var used = {};
+  (p.preparazioni || []).forEach(function(pr) {
+    if (pr.annullata || !pr.numeroDosette) return;
+    var num = parseInt(pr.numeroDosette);
+    if (!used[num]) used[num] = {hasDisp: false, hasReady: false};
+    if (pr.consegna) used[num].hasDisp = true; else used[num].hasReady = true;
+  });
+
+  // Prossima consegna: prima preparazione non annullata e non ancora consegnata
+  var _nextDal = null;
+  (p.preparazioni || []).forEach(function(pr) {
+    if (!pr.annullata && !pr.consegna && pr.periodoDal) {
+      if (!_nextDal || pr.periodoDal < _nextDal) _nextDal = pr.periodoDal;
+    }
+  });
+  var consegnaNota = '';
+  if (_nextDal) {
+    var _GIORNI_NOMI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+    var _GIORNO_DOW = {'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':0};
+    var _consDate = new Date(_nextDal + 'T00:00:00');
+    var _targetDow = _GIORNO_DOW[p.giorno];
+    if (_targetDow !== undefined) {
+      // risali indietro dal periodoDal fino a trovare il giorno della settimana di ritiro
+      for (var _i = 0; _i < 7; _i++) {
+        _consDate.setDate(_consDate.getDate() - 1);
+        if (_consDate.getDay() === _targetDow) break;
+      }
+    }
+    var _cd = _tlLocalDate(_consDate).split('-');
+    var _cdNome = _GIORNI_NOMI[_consDate.getDay()];
+    consegnaNota = '<div style="font-size:11px;color:var(--accent);font-weight:600;margin-top:2px">📦 Prossima consegna: ' + _cdNome + ' ' + _cd[2] + '.' + _cd[1] + '.' + _cd[0] + '</div>';
+  }
+
+  var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 10px">';
+
+  // navigazione mese
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    + '<button onclick="navTimeline(-1)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0">↑</button>'
+    + '<div style="text-align:center;flex:1">'
+    + '<div style="font-weight:700;font-size:14px">' + MONTHS[m] + ' ' + y + '</div>'
+    + consegnaNota
+    + '</div>'
+    + '<button onclick="navTimeline(1)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0">↓</button>'
+    + '</div>';
+
+  // intestazioni giorni
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:3px">';
+  DNAMES.forEach(function(dn, di) {
+    var festH = (di === 6) ? 'color:#d32f2f;' : 'color:var(--text3);';
+    html += '<div style="text-align:center;font-size:10px;font-weight:700;' + festH + '">' + dn + '</div>';
+  });
+  html += '</div>';
+
+  // celle calendario
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
+  cells.forEach(function(day, idx) {
+    if (!day) { html += '<div></div>'; return; }
+    var col = idx % 7; // 0=Lu, 6=Do
+    var ds = y + '-' + String(m+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+    var festivo = col === 6 || holidays.has(ds);
+    var festName = (col !== 6 && holidays.has(ds)) ? holidays.get(ds) : null;
+    var dayData = cov[ds];
+    var txtColor = festivo ? '#d32f2f' : 'var(--text1)';
+    var txtWeight = festivo ? '700' : '500';
+    var ellipseHtml = '';
+    if (dayData) {
+      var color = _DOSETTE_COLORS[(dayData.num - 1) % _DOSETTE_COLORS.length];
+      var bg = dayData.dispensata ? color + '55' : 'var(--surface)';
+      ellipseHtml = '<div style="position:absolute;inset:1px;border-radius:50%;background:' + bg + ';border:2.5px solid ' + color + '"></div>';
+    }
+    var clickAttr = festName ? ' onclick="showToast(\'' + festName + '\')" title="' + festName + '"' : '';
+    var cursorStyle = festName ? 'cursor:pointer;' : '';
+    html += '<div' + clickAttr + ' style="' + cursorStyle + 'position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:44px">'
+      + ellipseHtml
+      + '<span style="font-size:9px;font-weight:700;line-height:1.1;position:relative;z-index:1;color:' + txtColor + '">' + DNAMES[col] + '</span>'
+      + '<span style="font-size:12px;font-weight:' + txtWeight + ';line-height:1.2;position:relative;z-index:1;color:' + txtColor + '">' + day + '</span>'
+      + '</div>';
+  });
+  html += '</div>';
+
+  // legenda
+  var legendHtml = Object.keys(used).sort(function(a,b){return a-b;}).map(function(num) {
+    var color = _DOSETTE_COLORS[(num-1) % _DOSETTE_COLORS.length];
+    return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px">'
+      + '<span style="width:13px;height:13px;border-radius:50%;background:' + color + '55;border:2px solid ' + color + ';display:inline-block;flex-shrink:0"></span>'
+      + 'N°' + num + '</span>';
+  }).join('');
+  if (legendHtml) {
+    html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px">'
+      + legendHtml
+      + '<span style="font-size:11px;color:var(--text3);margin-left:auto;align-self:center">● pieno = consegnata &nbsp; ○ bordo = pronta</span>'
+      + '</div>';
+  }
+  html += '<div style="font-size:10px;color:#d32f2f;margin-top:5px">Rosso = farmacia chiusa (domeniche e festivi ticinesi)</div>';
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 // ════════════════════════════════════════════
@@ -2633,11 +2950,91 @@ function renderAnagrafica(p) {
     html += '<div style="margin-top:12px;padding:12px;background:var(--warning-light);border-radius:8px;font-size:14px;color:var(--warning)">📝 ' + escHtml(p.note) + '</div>';
   }
   document.getElementById('anagrafica-content').innerHTML = html;
-  // Mostra pulsante solo a Farmacista
+  // Mostra pulsanti solo a Farmacista / Amministratore
   var bar = document.getElementById('anagrafica-modifica-bar');
   if (bar) bar.style.display = isFarmacista(currentOperatore) ? '' : 'none';
 }
 
+// ════════════════════════════════════════════
+// CANCELLA PAZIENTE (solo Farmacista / Amministratore)
+// ════════════════════════════════════════════
+function chiediCancellaPaziente(pid) {
+  if (!isFarmacista(currentOperatore)) {
+    showToast('Funzione riservata al Farmacista', 'error');
+    return;
+  }
+  var p = pid ? getPaziente(pid) : getCP();
+  if (!p) return;
+  mostraModal(
+    '<div style="padding:4px">'
+    + '<div style="font-size:17px;font-weight:700;margin-bottom:14px">🗑 Cancella paziente</div>'
+    + '<p style="margin:0 0 10px">Sei sicuro di voler cancellare definitivamente il paziente <strong>' + escHtml(p.cognome + ' ' + p.nome) + '</strong>?</p>'
+    + '<p style="margin:0 0 20px;color:var(--text2);font-size:13px">Il paziente verrà spostato nel Cestino e potrà essere ripristinato in qualsiasi momento.</p>'
+    + '<button class="btn btn-full" style="background:var(--danger);color:white;border:none;margin-bottom:8px" onclick="cancellaPaziente(\'' + escJs(p.id) + '\')">Sì, sposta nel cestino</button>'
+    + '<button class="btn btn-outline btn-full" onclick="chiudiModal()">Annulla</button>'
+    + '</div>'
+  );
+}
+
+function cancellaPaziente(pid) {
+  if (!isFarmacista(currentOperatore)) {
+    showToast('Funzione riservata al Farmacista', 'error');
+    chiudiModal();
+    return;
+  }
+  var targetId = pid || (getCP() ? getCP().id : null);
+  if (!targetId) { chiudiModal(); return; }
+  var p = getPaziente(targetId);
+  if (!p) { chiudiModal(); return; }
+  chiudiModal();
+  p._eliminato = true;
+  p._eliminatoIl = now();
+  p._eliminatoDa = currentOperatore.nome + ' (' + (currentOperatore.sigla || currentOperatore.ruolo) + ')';
+  sincronizzaPaziente(p);
+  showToast('Paziente spostato nel cestino', 'success');
+  if (currentPazienteId === targetId) currentPazienteId = null;
+  renderHome();
+  showScreen('screen-home');
+}
+
+// ════════════════════════════════════════════
+// CESTINO — ripristino pazienti eliminati
+// ════════════════════════════════════════════
+function renderCestino() {
+  var listEl = document.getElementById('cestino-list');
+  var countEl = document.getElementById('cestino-count');
+  if (!listEl) return;
+  var eliminati = DB.pazienti.filter(function(p){ return p._eliminato; });
+  if (countEl) countEl.textContent = eliminati.length;
+  if (!eliminati.length) {
+    listEl.innerHTML = '<div class="empty-state" style="padding:40px 0"><div class="icon">✅</div><p>Nessun paziente nel cestino</p></div>';
+    return;
+  }
+  listEl.innerHTML = eliminati.map(function(p) {
+    return '<div class="card" style="margin-bottom:12px">'
+      + '<div style="font-size:16px;font-weight:700;margin-bottom:4px">' + escHtml(p.cognome) + ' ' + escHtml(p.nome) + '</div>'
+      + '<div style="font-size:13px;color:var(--text2);margin-bottom:2px">' + formatDate(p.ddn) + ' · ' + formatAge(p.ddn) + ' · ' + escHtml(p.medico || '—') + '</div>'
+      + '<div style="font-size:12px;color:var(--text3);margin-bottom:12px">Eliminato il ' + escHtml(p._eliminatoIl || '—') + ' da ' + escHtml(p._eliminatoDa || '—') + '</div>'
+      + '<button class="btn btn-outline btn-full" onclick="ripristinaPaziente(\'' + escJs(p.id) + '\')">↩ Ripristina paziente</button>'
+      + '</div>';
+  }).join('');
+}
+
+function ripristinaPaziente(pid) {
+  if (!isFarmacista(currentOperatore)) {
+    showToast('Funzione riservata al Farmacista', 'error');
+    return;
+  }
+  var p = getPaziente(pid);
+  if (!p) return;
+  delete p._eliminato;
+  delete p._eliminatoIl;
+  delete p._eliminatoDa;
+  sincronizzaPaziente(p);
+  showToast(escHtml(p.cognome + ' ' + p.nome) + ' ripristinato', 'success');
+  renderCestino();
+  renderHome();
+}
 
 // ════════════════════════════════════════════
 // MODIFICA ANAGRAFICA PAZIENTE
@@ -3016,13 +3413,15 @@ function doNuovaSessioneDosettes() {
 function isFarmacista(op) {
   if (!op) return false;
   var r = op.ruolo || '';
-  return r === 'Farmacista' || r === 'farmacista' || r === 'amministratore';
+  return r === 'Farmacista' || r === 'farmacista' || r === 'amministratore' || r === 'titolare';
 }
 
 function applicaRuolo() {
   if (!currentOperatore) return;
   var btnMod = document.getElementById('btn-modifica-terapia');
   if (btnMod) btnMod.style.display = isFarmacista(currentOperatore) ? '' : 'none';
+  var btnCestino = document.getElementById('btn-cestino');
+  if (btnCestino) btnCestino.style.display = isFarmacista(currentOperatore) ? '' : 'none';
 }
 
 // ===== SESSION LOCK: 5 min inattività -> LOCK, 30 min -> LOGOUT =====
