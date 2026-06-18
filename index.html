@@ -881,7 +881,7 @@ body {
 </div>
 
 <!-- ════ DEVICE AUTH OVERLAY ════ -->
-<div id="device-auth-overlay" style="display:flex;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.88);flex-direction:column;align-items:center;justify-content:center;">
+<div id="device-auth-overlay" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.88);flex-direction:column;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:16px;padding:32px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
     <div style="font-size:42px;margin-bottom:12px;">🔒</div>
     <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:#111;">Dispositivo non riconosciuto</div>
@@ -1634,9 +1634,17 @@ function createSingleInstanceGuard(appKey) {
       async function sha256(s){var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
       window._daDeviceId=getOrCreateDeviceId();
       firebase.auth().onAuthStateChanged(async function(user){
-        if(!user) return;
+        if(!user||user.isAnonymous) return; // attendi login con PIN
         var db=firebase.firestore();
-        try{var doc=await db.collection('dispositivi').doc(window._daDeviceId).get();if(doc.exists&&doc.data().autorizzato===true){db.collection('dispositivi').doc(window._daDeviceId).update({ultimoAccesso:new Date()});document.getElementById('device-auth-overlay').style.display='none';return;}}catch(e){console.warn('Device check:',e);}
+        try{
+          var doc=await db.collection('dispositivi').doc(window._daDeviceId).get();
+          if(doc.exists&&doc.data().autorizzato===true){
+            db.collection('dispositivi').doc(window._daDeviceId).update({ultimoAccesso:new Date()});
+            document.getElementById('device-auth-overlay').style.display='none';
+          } else {
+            document.getElementById('device-auth-overlay').style.display='flex';
+          }
+        }catch(e){console.warn('Device check:',e);}
       });
       window.daVerificaCodice=async function(){var code=(document.getElementById('da-code').value||'').trim();if(!code)return;var hash=await sha256(code);if(hash!=='81a7ad73c35f4ef750d4471a0be8482de72b0d8327b4337573d712970131b8c4'){document.getElementById('da-error').textContent='Codice non valido.';return;}document.getElementById('da-step1').style.display='none';document.getElementById('da-step2').style.display='block';};
       window.daRegistraDispositivo=async function(){var nome=(document.getElementById('da-nome').value||'').trim();if(!nome){document.getElementById('da-error2').textContent='Inserisci un nome.';return;}try{var db=firebase.firestore();await db.collection('dispositivi').doc(window._daDeviceId).set({nome:nome,autorizzato:false,richiesta:true,primoAccesso:new Date(),ultimoAccesso:new Date(),userAgent:navigator.userAgent},{merge:true});document.getElementById('da-error2').style.color='#2e7d32';document.getElementById('da-error2').textContent='Richiesta inviata. Autorizza il dispositivo dalla console admin su un dispositivo già abilitato.';}catch(e){document.getElementById('da-error2').textContent='Errore di salvataggio. Riprova.';}};
