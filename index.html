@@ -1209,7 +1209,8 @@ body {
       <div style="font-size:56px;margin-bottom:12px">✅</div>
       <div style="font-size:24px;font-weight:800;color:var(--accent-dark);margin-bottom:10px">Salvataggio completato</div>
       <div id="step-complete-message" style="font-size:15px;color:var(--text2);margin-bottom:18px">Operazione registrata correttamente.</div>
-      <div style="font-size:13px;color:var(--text3)">Sessione in chiusura…</div>
+      <div id="step-sync-status" style="font-size:14px;margin-bottom:14px"></div>
+      <div id="step-close-msg" style="font-size:13px;color:var(--text3)"></div>
     </div>
   </div>
 </div>
@@ -2041,10 +2042,71 @@ function mostraModal(html) {
   document.getElementById('modal-overlay').style.display = 'flex';
 }
 
-function showStepCompletion(message) {
+var _stepSyncPaziente = null;
+var _stepCloseTimer = null;
+
+function _scheduleStepClose() {
+  clearTimeout(_stepCloseTimer);
+  var el = document.getElementById('step-close-msg');
+  if (el) el.textContent = 'Sessione in chiusura…';
+  _stepCloseTimer = setTimeout(function(){ logout(); }, 1800);
+}
+
+function showStepCompletion(message, pazientePerSync) {
   document.getElementById('step-complete-message').textContent = message || 'Operazione registrata correttamente.';
+  var syncEl = document.getElementById('step-sync-status');
+  var closeEl = document.getElementById('step-close-msg');
+  if (closeEl) closeEl.textContent = '';
   showScreen('screen-step-complete');
-  setTimeout(function(){ logout(); }, 1400);
+
+  if (!pazientePerSync || !FIREBASE_ENABLED || !firestoreDB) {
+    if (syncEl) syncEl.innerHTML = '';
+    _scheduleStepClose();
+    return;
+  }
+
+  _stepSyncPaziente = pazientePerSync;
+  if (syncEl) syncEl.innerHTML = '<span style="color:var(--text3)">⏳ Sincronizzazione cloud…</span>';
+
+  firestoreDB.collection('pazienti').doc(pazientePerSync.id).set(pazientePerSync)
+    .then(function() {
+      _stepSyncPaziente = null;
+      if (syncEl) syncEl.innerHTML = '<span style="color:var(--accent-dark);font-weight:600">✓ Dati salvati su cloud</span>';
+      _scheduleStepClose();
+    }).catch(function(e) {
+      console.error('Sync paziente (step-complete) fallita:', e && e.code);
+      if (syncEl) syncEl.innerHTML =
+        '<div style="color:var(--warning);font-weight:600;margin-bottom:10px">⚠️ Salvataggio cloud non riuscito</div>' +
+        '<div style="display:flex;gap:8px;justify-content:center">' +
+        '<button onclick="retryStepSync()" style="padding:9px 20px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">↺ Riprova</button>' +
+        '<button onclick="logout()" style="padding:9px 20px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit">Chiudi comunque</button>' +
+        '</div>';
+      if (closeEl) closeEl.textContent = 'I dati sono al sicuro in questa sessione.';
+    });
+}
+
+function retryStepSync() {
+  var p = _stepSyncPaziente;
+  if (!p || !firestoreDB) return;
+  var syncEl = document.getElementById('step-sync-status');
+  var closeEl = document.getElementById('step-close-msg');
+  if (syncEl) syncEl.innerHTML = '<span style="color:var(--text3)">⏳ Nuovo tentativo…</span>';
+  if (closeEl) closeEl.textContent = '';
+  firestoreDB.collection('pazienti').doc(p.id).set(p)
+    .then(function() {
+      _stepSyncPaziente = null;
+      if (syncEl) syncEl.innerHTML = '<span style="color:var(--accent-dark);font-weight:600">✓ Dati salvati su cloud</span>';
+      _scheduleStepClose();
+    }).catch(function(e) {
+      console.error('Retry sync fallita:', e && e.code);
+      if (syncEl) syncEl.innerHTML =
+        '<div style="color:var(--warning);font-weight:600;margin-bottom:10px">⚠️ Ancora non raggiungibile</div>' +
+        '<div style="display:flex;gap:8px;justify-content:center">' +
+        '<button onclick="retryStepSync()" style="padding:9px 20px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">↺ Riprova</button>' +
+        '<button onclick="logout()" style="padding:9px 20px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit">Chiudi comunque</button>' +
+        '</div>';
+      if (closeEl) closeEl.textContent = 'I dati sono al sicuro in questa sessione.';
+    });
 }
 
 function collectWorkflowQueue() {
@@ -4054,23 +4116,16 @@ function completaPreparazione() {
   }
   var prep = buildPreparazionePayload(p, statoTarget);
   if (!prep) { showToast('Preparazione non valida', 'error'); return; }
-  var btn = document.querySelector('#btn-completa-prep button');
-  if (btn) btn.disabled = true;
+  // Aggiorna stato locale subito — la schermata di conferma gestisce il sync Firestore
   upsertPreparazione(p, prep);
   registraStoricoPreparazione(p, prep, firmaRiempimento ? firmaRiempimento.sigla : '-', firmaControllo ? firmaControllo.sigla : '-', true);
-  sincronizzaPaziente(p).then(function(){
-    renderPreparazione(p);
-    renderHome();
-    resetPreparazioneFlow();
-    if (statoTarget === 'da_controllare') {
-      showStepCompletion('Preparazione salvata correttamente. Effettuare un nuovo login per il controllo.');
-      return;
-    }
-    showStepCompletion('Controllo salvato correttamente. Effettuare un nuovo login per la dispensazione.');
-  }).catch(function(){
-    if (btn) btn.disabled = false;
-    // toast già mostrato da sincronizzaPaziente — l'utente rimane sulla schermata per riprovare
-  });
+  renderPreparazione(p);
+  renderHome();
+  var msg = statoTarget === 'da_controllare'
+    ? 'Preparazione salvata. Effettuare un nuovo login per il controllo.'
+    : 'Controllo salvato. Effettuare un nuovo login per la dispensazione.';
+  resetPreparazioneFlow();
+  showStepCompletion(msg, p);
 }
 
 // ════════════════════════════════════════════
