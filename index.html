@@ -1654,6 +1654,8 @@ function createSingleInstanceGuard(appKey) {
       if (!_authInitialized) {
         _authInitialized = true;
         if (!user) {
+          // Mostra subito il login con operatori in cache, senza aspettare auth anonima
+          loadData().then(function(){ initLoginScreen(); }).catch(function(){ initLoginScreen(); });
           firebase.auth().signInAnonymously().catch(function(e){ console.warn('Firebase auth anonima fallita:', e.code); });
           return;
         }
@@ -1732,7 +1734,11 @@ function loadData() {
     var loaded = [];
     snapshot.forEach(function(doc){ loaded.push(doc.data()); });
     OPERATORI = loaded;
-  }).catch(function(){ OPERATORI = []; });
+    if (loaded.length > 0) { try { localStorage.setItem('fa_operatori_cache', JSON.stringify(loaded)); } catch(e){} }
+  }).catch(function(){
+    var cached = localStorage.getItem('fa_operatori_cache');
+    OPERATORI = cached ? JSON.parse(cached) : [];
+  });
 
   var loadStorico = firestoreDB.collection('terapie_storiche').get().then(function(snapshot) {
     TERAPIE_STORICHE = {};
